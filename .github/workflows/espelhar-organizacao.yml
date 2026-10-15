@@ -49,6 +49,11 @@ jobs:
         if: steps.token.outputs.ok == 'true'
         with:
           fetch-depth: 0
+          # Sem isto o checkout grava o GITHUB_TOKEN DESTE repositorio como
+          # cabecalho pra todo https://github.com/, e ele passa por cima do
+          # token da organizacao no push: "You must have push access to
+          # verify locks". Este repositorio e publico, ler nao precisa dele.
+          persist-credentials: false
 
       # Os modelos (26 MB) ficam guardados entre execucoes: baixar todos a
       # cada push gastaria a cota mensal de LFS do repositorio, que o build do
