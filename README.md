@@ -1,127 +1,172 @@
+<div align="center">
+
+<img src="site/images/logo-completa.jpg" alt="VisuAll" width="180">
+
 # VisuAll
 
-Reconhecimento de **Libras** em tempo real: a câmera vê o sinal, o aparelho
-entende a letra, e a frase aparece escrita — sem nuvem, sem internet, tudo
-rodando no próprio dispositivo.
+**Libras em tempo real, na câmera que você já tem.**
+
+A câmera vê o sinal, o celular entende e a frase aparece escrita na tela.
+Tudo roda no próprio aparelho: sem nuvem e sem internet.
+
+[![Site](https://img.shields.io/badge/site-visuall2k26.github.io-ffd34d?style=flat-square)](https://visuall2k26.github.io/)
+[![Baixar APK](https://img.shields.io/badge/baixar-Android-3ddc84?style=flat-square&logo=android&logoColor=white)](https://visuall2k26.github.io/baixar/)
+[![Vídeo](https://img.shields.io/badge/vídeo-YouTube-ff0000?style=flat-square&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=OTPf8B4C49Y)
+<br>
+[![Android Build](https://github.com/VisuAll2K26/VisuAll2K26.github.io/actions/workflows/android-build.yml/badge.svg)](https://github.com/VisuAll2K26/VisuAll2K26.github.io/actions/workflows/android-build.yml)
+[![Python Training](https://github.com/VisuAll2K26/VisuAll2K26.github.io/actions/workflows/python-training.yml/badge.svg)](https://github.com/VisuAll2K26/VisuAll2K26.github.io/actions/workflows/python-training.yml)
+
+</div>
 
 > **Os óculos são os olhos. O celular é o cérebro. O fone é a voz.**
->
 > Quem ouve conversa olhando para a pessoa, e não para uma tela.
 
 ---
 
-## O mapa do repositório
+## O que ele faz
 
-São **três** frentes de trabalho, cada uma com o seu próprio guia:
+| Modo | O que reconhece |
+|---|---|
+| **Alfabeto** | As letras de Libras, paradas (A, B, C...) e com movimento (H, J, K, X, Z), formando palavras letra por letra. |
+| **Corpo** | Sinais de palavra inteira (AJUDAR, COMPUTADOR, CONVERSAR, PESSOA, SURDO), em sequência, sem precisar pausar entre eles. A frase sai com concordância. |
+| **Óculos** | A mesma coisa, mas com a câmera presa na armação dos óculos, mandando a imagem para o celular por Wi-Fi. |
 
-| Pasta | O que vive lá | Guia |
-|---|---|---|
-| `mobile/` | O aplicativo Android. É ele que reconhece, escreve e fala. Roda no aparelho com MediaPipe Tasks, ONNX Runtime e TFLite. | [mobile/README.md](mobile/README.md) |
-| `computer/` | O lado PC: o reconhecedor de mesa em Python, a interface web, as ferramentas de treino, os datasets e os modelos. É aqui que os modelos nascem. | [computer/README.md](computer/README.md) |
-| `oculos/` | A câmera dos óculos: um ESP32-S3-CAM preso na armação. Em `oculos/firmware/` está o programa da placa; em `oculos/mock/`, uma imitação dela que roda no PC para desenvolver **sem a placa**. | [oculos/README.md](oculos/README.md) |
-
-O caminho de uma letra, de ponta a ponta:
+## Como funciona
 
 ```text
-camera  ->  MediaPipe          ->  modelo         ->  frase na tela
-            (pontos da mao)        (que letra e)      (e voz, se quiser)
-
-a camera pode ser a do celular OU a dos oculos, por Wi-Fi
-o modelo vem de computer/treino/ e e copiado pra dentro do app
+câmera  ──►  MediaPipe            ──►  modelo            ──►  frase na tela
+(celular     (pontos da mão,           (que letra ou          (e voz, se
+ ou óculos)   do corpo e do rosto)      que sinal é)           quiser)
 ```
+
+Os modelos nascem no PC (`computer/`), a partir de vídeos gravados pela
+equipe, e vão **embutidos** no app (`mobile/`). Depois de instalado, o celular
+não precisa de PC nem de internet.
 
 ---
 
-## Onde o código mora
+## O que tem em cada pasta
 
-Tudo fica em um repositório só, o da organização:
-**[VisuAll2K26/VisuAll2K26.github.io](https://github.com/VisuAll2K26/VisuAll2K26.github.io)**.
+| Pasta | O que é | Guia |
+|---|---|---|
+| 📱 [`mobile/`](mobile/) | O **aplicativo Android**. Reconhece, escreve e fala. | [mobile/README.md](mobile/README.md) |
+| 💻 [`computer/`](computer/) | O **lado PC**: gravar vídeos, treinar os modelos e o reconhecedor de referência em Python. | [computer/README.md](computer/README.md) |
+| 👓 [`oculos/`](oculos/) | A **câmera dos óculos** (ESP32-S3-CAM) e uma imitação dela para desenvolver sem a placa. | [oculos/README.md](oculos/README.md) |
+| 🌐 [`site/`](site/) | O **site** do projeto, publicado em [visuall2k26.github.io](https://visuall2k26.github.io/). | [site/README.md](site/README.md) |
+| ⚙️ [`.github/`](.github/) | As **automações**: compilar o app, publicar o APK e o site, testar o treino. | [.github/workflows/README.md](.github/workflows/README.md) |
 
-| | Endereço |
-|---|---|
-| Código, build do app e APK | este repositório |
-| Site | [visuall2k26.github.io](https://visuall2k26.github.io/), publicado da pasta `site/` |
-| APK mais recente | [releases/download/app/VisuAll.apk](https://github.com/VisuAll2K26/VisuAll2K26.github.io/releases/download/app/VisuAll.apk) |
-
-O nome `VisuAll2K26.github.io` não é capricho: é o que o GitHub exige para o
-site ficar no endereço curto, sem nada depois da barra.
+Na raiz também ficam o [`CHANGELOG.md`](CHANGELOG.md), que é o diário das
+**constantes de calibração** do reconhecimento (cada limiar, o valor atual e
+por que ele é esse), e a [`LICENSE`](LICENSE) (MIT).
 
 ---
 
 ## Por onde começar
 
-### Só quero ver o app rodando
+<details>
+<summary><b>Quero só usar o app</b></summary>
+
+<br>
+
+Baixe o APK mais recente em **[visuall2k26.github.io/baixar](https://visuall2k26.github.io/baixar/)**
+e instale no celular (Android 8 ou mais recente). Ele é atualizado
+automaticamente a cada mudança no app.
+
+</details>
+
+<details>
+<summary><b>Quero compilar o app</b></summary>
+
+<br>
+
+Abra a pasta `mobile` no **Android Studio**, espere o Gradle sincronizar e
+clique em **Run**. Pelo terminal:
 
 ```powershell
 cd mobile
 .\gradlew.bat assembleDebug
 ```
 
-O APK sai em `mobile\app\build\outputs\apk\debug\app-debug.apk`.
+Passo a passo: [mobile/README.md](mobile/README.md).
 
-> **Na primeira vez, abra a pasta `mobile` no Android Studio e deixe o Gradle
-> sincronizar.** O arquivo `local.properties`, que diz onde está o Android SDK,
-> não vai no git — sem ele o build para com *"SDK location not found"*.
+</details>
 
-Passo a passo com telas: [mobile/README.md](mobile/README.md).
+<details>
+<summary><b>Quero ensinar letras ou sinais novos</b></summary>
 
-### Quero treinar ou trocar os modelos
+<br>
 
-```powershell
-cd computer
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
+Tudo é **duplo-clique** nos `.bat` de `computer\treino\`: grava com a webcam,
+treina e o modelo novo já cai dentro do app. Depois é só recompilar.
 
-Use Python 3.11 quando der; o time de treino é testado de 3.10 a 3.12.
+Guia rápido: [computer/treino/README.md](computer/treino/README.md).
 
-O reconhecedor de mesa:
+</details>
 
-```powershell
-python linear\backend\app.py
-python modular\app_backend_unificado.py
-```
+<details>
+<summary><b>Quero mexer nos óculos</b></summary>
 
-O treino é **duplo-clique**, sem digitar comando, nos `.bat` de
-`computer\treino\`: `Gravar.bat`, `Reforcar.bat`, `Treinar.bat`,
-`TreinarCorpo.bat`, `RestaurarModelo.bat`.
+<br>
 
-O que sai do treino é gravado direto em `mobile\app\src\main\assets\`, então
-**recompile o app depois de treinar**.
-
-Detalhes: [computer/README.md](computer/README.md) e
-[computer/treino/README.md](computer/treino/README.md).
-
-### Quero mexer nos óculos
-
-Dá para fazer quase tudo **sem ter a placa**. O mock (`oculos/mock/`) roda no
-PC, usa a webcam e fala o mesmo protocolo do firmware:
+Dá para fazer quase tudo **sem a placa**: o mock roda no PC com a webcam e
+fala o mesmo protocolo.
 
 ```powershell
 python oculos\mock\mock.py
 ```
 
-Ele mostra um endereço; é esse endereço que se digita no app, no botão do olho.
+Do zero, escrito para quem nunca mexeu com isso: [oculos/README.md](oculos/README.md).
 
-Com a placa, o firmware (`oculos/firmware/`) compila e grava com um comando:
+</details>
 
-```powershell
-cd oculos\firmware
-.\compilar.ps1 -Porta COM8
-```
+<details>
+<summary><b>Quero mexer no site</b></summary>
 
-Passo a passo do zero, escrito para quem nunca mexeu com isso:
-[oculos/README.md](oculos/README.md).
+<br>
+
+É HTML, CSS e JavaScript puro, sem build. Edite em `site/`, envie para a
+`main` e ele se publica sozinho em menos de um minuto.
+
+Detalhes: [site/README.md](site/README.md).
+
+</details>
 
 ---
 
-## O que fica na raiz, e por quê
+## Toda a documentação
 
-| Arquivo | Para que serve |
+| Assunto | Onde |
 |---|---|
-| `README.md` | este mapa |
-| `CHANGELOG.md` | o histórico das **constantes de calibração** do reconhecimento: cada limiar, o valor atual e por que ele é esse. Não é lista de novidades. |
-| `.github/` | as duas esteiras de CI: **Android Build** e **Python Training** |
-| `.gitignore` | as regras compartilhadas |
-| `LICENSE` | a licença |
+| Compilar e entender o app | [mobile/README.md](mobile/README.md) |
+| Formato dos modelos que o app lê | [mobile/TREINAMENTO_MODELOS.md](mobile/TREINAMENTO_MODELOS.md) |
+| Treinar, guia rápido | [computer/treino/README.md](computer/treino/README.md) |
+| Treinar, guia completo | [computer/TREINO.md](computer/TREINO.md) |
+| Testar no celular de verdade | [computer/VALIDACAO.md](computer/VALIDACAO.md) |
+| Scripts de medição do treino | [computer/treino/diagnostico/README.md](computer/treino/diagnostico/README.md) |
+| Óculos, do zero | [oculos/README.md](oculos/README.md) |
+| Firmware da placa | [oculos/firmware/README.md](oculos/firmware/README.md) |
+| Avaliações do site | [site/avaliacao/README.md](site/avaliacao/README.md) |
+| Por que cada limiar tem o valor que tem | [CHANGELOG.md](CHANGELOG.md) |
+
+---
+
+## Equipe
+
+Estudantes de **Engenharia de Software da FIAP**, no **Challenge 2026 com a JOVI**.
+
+| | |
+|---|---|
+| **João Victor Pereira Gimenes** | [LinkedIn](https://www.linkedin.com/in/jo%C3%A3o-victor-pereira-gimenes-191615374/) |
+| **Juan Duarte Moura** | [LinkedIn](https://www.linkedin.com/in/juan-duarte-moura/) |
+| **Julio Cesar da Silva Cocco** | [LinkedIn](https://www.linkedin.com/in/julio-cesar-da-silva-cocco-085400338/) |
+| **Rafael Boletini de Oliveira** | [LinkedIn](https://www.linkedin.com/in/rafael-boletini-de-oliveira-24b782275/) |
+| **Victor Rossi Sales Zanandré** | [LinkedIn](https://www.linkedin.com/in/victor-zanandre/) |
+
+Contato: [visuall2k26@gmail.com](mailto:visuall2k26@gmail.com) ·
+[Instagram](https://www.instagram.com/visuall2k26) ·
+[YouTube](https://www.youtube.com/@VisuAll2K26) ·
+[TikTok](https://www.tiktok.com/@visuall2k26)
+
+<sub>Este repositório se chama <code>VisuAll2K26.github.io</code> porque é esse
+nome que deixa o site no endereço curto. Ele guarda o projeto inteiro, não só
+o site.</sub>

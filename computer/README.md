@@ -1,59 +1,85 @@
-# VisuAll Computer
+# 💻 Lado PC
 
-Python workspace for the desktop recognizer, model training and shared tests.
+Tudo o que roda no computador: **gravar vídeos de sinais, treinar os modelos**
+que vão para o app e o **reconhecedor de referência** em Python, que foi o
+primeiro VisuAll e continua sendo a régua do app.
 
-## Layout
+O celular não depende de nada daqui para funcionar. O PC só entra quando
+alguém quer ensinar uma letra ou um sinal novo.
 
-| Path | Purpose |
+---
+
+## O que tem em cada pasta
+
+| Pasta | O que é | Guia |
+|---|---|---|
+| [`treino/`](treino/) | **Gravar e treinar**, tudo por duplo-clique nos `.bat`. É a pasta que você mais vai usar. | [treino/README.md](treino/README.md) |
+| [`treino/diagnostico/`](treino/diagnostico/) | Scripts que **medem** o treino e o app: acerto honesto, limiares, velocidade. | [README](treino/diagnostico/README.md) |
+| [`linear/`](linear/) | O reconhecedor de PC **num arquivo só**, mais a página web que mostra o resultado. | [README](linear/README.md) |
+| [`modular/`](modular/) | O **mesmo** reconhecedor, dividido em 10 módulos pequenos para ler e estudar. | [README](modular/README.md) |
+| [`models/`](models/) | Os modelos `.pkl` que o reconhecedor de PC usa. O app **não** usa estes. | [README](models/README.md) |
+| [`tests/`](tests/) | O **contrato** entre o Python e o app: as contas dos dois lados têm que dar o mesmo número. | [README](tests/README.md) |
+| `data/` | Os vídeos e fotos gravados. **Fica só no seu PC**, não vai para o git. | — |
+
+E os guias soltos nesta pasta:
+
+| Arquivo | Para quê |
 |---|---|
-| `linear/` | Single-file desktop backend plus the web frontend it serves. |
-| `modular/` | Same desktop backend split into smaller modules. |
-| `treino/` | Recording, importing, extraction and training tools. |
-| `tests/` | Shared contract fixtures between Python training and Android Kotlin math. |
-| `models/` | Python `.pkl` models used by the desktop backend. |
-| `data/` | Local recordings and generated datasets. Ignored by Git. |
+| [`TREINO.md`](TREINO.md) | O guia **completo** de treino: o porquê de cada passo, o contrato com o app, problemas comuns. |
+| [`VALIDACAO.md`](VALIDACAO.md) | O roteiro de **teste no celular de verdade**, para saber se uma mudança melhorou ou piorou. |
+| `requirements.txt` | As bibliotecas Python, com as versões que funcionam juntas. |
 
-## Setup
+---
 
-Use Python 3.11 when possible; the full training stack is kept tested on
-Python 3.10-3.12.
+## Instalar (uma vez)
 
-```bat
+Use o **Python 3.11** se puder (funciona do 3.10 ao 3.12).
+
+```powershell
 cd computer
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Run The Desktop Backend
+Os `.bat` do treino conferem e instalam o que faltar sozinhos. O passo acima
+só é necessário para rodar os scripts na mão.
 
-```bat
-python linear\backend\app.py
-python modular\app_backend_unificado.py
-```
+---
 
-Open `linear\frontend\index.html` in the browser while the backend is running.
-
-## Train Models For The Android App
-
-Double-click the scripts in `computer\treino\`, or run them from this folder:
+## Treinar um modelo para o app
 
 ```text
-treino\Gravar.bat
-treino\Reforcar.bat
-treino\Treinar.bat
-treino\TreinarCorpo.bat
-treino\RestaurarModelo.bat
+1. GRAVAR     treino\Gravar.bat        você faz os sinais na webcam
+2. TREINAR    treino\Reforcar.bat       letras (sem apagar as outras)
+              treino\TreinarCorpo.bat   sinais de corpo
+3. INSTALAR   recompile o app           o modelo já está dentro de mobile/
 ```
 
-Training outputs are written into `..\mobile\app\src\main\assets\`. Rebuild the Android app after training.
+O treino grava o modelo **direto** em `mobile/app/src/main/assets/`. Não tem
+arquivo para copiar: é só recompilar o app.
 
-## Checks
+Passo a passo: [treino/README.md](treino/README.md).
 
-```bat
-python -m compileall -q treino linear modular tests
-python -m unittest discover -s treino/tests -v
-python tests\gerar_fixtures_contrato.py
+---
+
+## Rodar o reconhecedor no PC
+
+```powershell
+python linear\backend\app.py
 ```
 
-For the Android-side contract check, run the Gradle tests from `..\mobile`.
+Com ele rodando, abra `linear\frontend\index.html` no navegador.
+`python modular\app_backend_unificado.py` faz a mesma coisa pela versão em
+módulos.
+
+---
+
+## Conferir que nada quebrou
+
+```powershell
+python -m compileall -q treino linear modular tests   # todo arquivo ainda abre
+python -m unittest discover -s treino/tests -v        # testes do treino
+```
+
+O CI roda isso, e mais o contrato com o app, a cada push que mexe aqui.

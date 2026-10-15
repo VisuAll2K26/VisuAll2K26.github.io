@@ -129,16 +129,13 @@ instalar nada disso separado.
 Abra o **PowerShell** (tecla Windows, digite "powershell", Enter) e:
 
 ```powershell
-git clone https://github.com/VisuAll2K26/VisuAll2K26.github.io.git
+git clone https://github.com/VisuAll2K26/VisuAll2K26.github.io.git VisuAll
 cd VisuAll
 ```
 
-A pasta `oculos/` vem junto, e todos os comandos deste guia partem da pasta
-`VisuAll`.
-
-> Se `oculos\mock` ou `oculos\firmware\firmware.ino` não existirem no que você
-> baixou, o trabalho mais novo ainda está no ramo dos óculos. Entre nele com
-> `git checkout esp32-camera-remota`.
+O `VisuAll` no fim do clone é o nome da pasta: sem ele, ela se chamaria
+`VisuAll2K26.github.io`. A pasta `oculos/` vem junto, e todos os comandos deste
+guia partem da pasta `VisuAll`.
 
 ---
 
