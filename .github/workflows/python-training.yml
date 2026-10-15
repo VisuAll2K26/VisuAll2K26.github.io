@@ -19,6 +19,10 @@ on:
 
 jobs:
   test:
+    # So no repositorio de trabalho. A copia da organizacao (ver
+    # espelhar-organizacao.yml) recebe tudo, inclusive este arquivo, mas nao
+    # deve compilar nem publicar nada em dobro.
+    if: github.repository == 'Juanduarte050508/VisuAll'
     runs-on: ubuntu-latest
     defaults:
       run:

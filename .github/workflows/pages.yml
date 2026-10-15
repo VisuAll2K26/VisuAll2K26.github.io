@@ -2,6 +2,11 @@ name: Publicar site
 
 # Publica a pasta site/ no GitHub Pages a cada push na main que mexa nela.
 # Tambem pode ser disparado a mao pela aba Actions.
+#
+# Roda nos dois repositorios. Aqui publica o endereco antigo
+# (juanduarte050508.github.io/VisuAll); na copia da organizacao (ver
+# espelhar-organizacao.yml) publica o oficial, https://visuall2k26.github.io/,
+# que e o do QR code de download.
 on:
   push:
     branches: [main]
