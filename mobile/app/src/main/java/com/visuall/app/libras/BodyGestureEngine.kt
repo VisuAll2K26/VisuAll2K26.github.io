@@ -50,7 +50,27 @@ internal class BodyGestureEngine(private val context: Context) {
     // pergunta decide antes de chamar processarFrame; um quadro de atraso nao
     // muda nada diante dos 3s que a limpeza exige.
     val gestoEmAndamento: Boolean
-        get() = bodyState == BodyState.CAPTURANDO
+        get() = if (LibrasAnalyzer.BODY_CONTINUO) {
+            // Sem estado de captura no modo continuo: vale "o modelo ja esta
+            // vendo um sinal" ou "a mao esta se mexendo como num sinal".
+            votosContinuo > 0 || ultimoMovimento > LibrasAnalyzer.BODY_START_MOTION
+        } else {
+            bodyState == BodyState.CAPTURANDO
+        }
+
+    // Modo continuo (ver processarContinuo): os ultimos BODY_JANELA_CONTINUA
+    // quadros normalizados e a votacao sobre eles.
+    private val janelaContinua = ArrayDeque<FloatArray>()
+    private var candidatoContinuo = ""
+    private var votosContinuo = 0
+    // Ligada pela lixeira e pelo limpar (thread da interface), lida pela
+    // analise: por isso @Volatile.
+    @Volatile private var aguardandoNovoSinal = false
+    // Tempo de inferencia, pra saber o custo de classificar a cada quadro no
+    // aparelho (logado a cada PERF_LOG_INTERVAL_MS).
+    private var inferenciasNoPeriodo = 0
+    private var inferenciaNanosNoPeriodo = 0L
+    private var ultimoLogInferencia = 0L
 
     private var ultimoNormalizado: FloatArray? = null
     // Ultima posicao conhecida de cada slot de mao, pra cobrir os quadros em
@@ -61,7 +81,6 @@ internal class BodyGestureEngine(private val context: Context) {
     private var bodyStartCount     = 0
     private var bodyEndCount       = 0
     private var capturaComecouEm   = 0L
-    private var ultimoTempoCorpo   = 0L
     private var ultimaClasseCorpo  = ""
     private var bodyNoHandSince    = 0L
     // Sinais reconhecidos em sequência (rótulos: PESSOA, SURDO...). A frase é
@@ -309,6 +328,9 @@ internal class BodyGestureEngine(private val context: Context) {
         // registrarMovimento(), que o LibrasAnalyzer chama antes de decidir o
         // gesto de limpar. Recalcular aqui contaria o mesmo quadro duas vezes.
         val normalized = ultimoNormalizado ?: LibrasMath.normalizeBodyFrame(bodyFrame.points)
+        if (LibrasAnalyzer.BODY_CONTINUO) {
+            return processarContinuo(normalized, agora, onLetra, onFeedback)
+        }
         val movimento = ultimoMovimento
         var novaFrase: String? = null
 
@@ -356,12 +378,18 @@ internal class BodyGestureEngine(private val context: Context) {
                             "CORPO: ${SentenceTranslator.traduzirCorpo(prediction.letra).uppercase()}",
                             LibrasAnalyzer.FEEDBACK_BOM
                         )
+                        // O Python espera COOLDOWN_CORPO depois de QUALQUER
+                        // palavra. No aparelho isso jogava fora o sinal
+                        // seguinte: PESSOA e logo SURDO caia dentro dos 2s, a
+                        // tela mostrava "CORPO: SURDO" e a frase nao mudava --
+                        // relatado como "tenho que ficar esperando pra fazer
+                        // o outro". Palavra diferente entra na hora. Repetir a
+                        // mesma continua barrado ate o corpo sair do quadro
+                        // (onCorpoAusente), que e o que evita PESSOA PESSOA.
                         if (prediction.letra != "NEUTRO" &&
-                            prediction.letra != ultimaClasseCorpo &&
-                            agora - ultimoTempoCorpo > LibrasAnalyzer.BODY_COOLDOWN) {
+                            prediction.letra != ultimaClasseCorpo) {
                             bodyTokens.add(prediction.letra.uppercase())
                             novaFrase = SentenceTranslator.traduzirFrase(bodyTokens)
-                            ultimoTempoCorpo = agora
                             ultimaClasseCorpo = prediction.letra
                         }
                     } else {
@@ -378,24 +406,125 @@ internal class BodyGestureEngine(private val context: Context) {
         return novaFrase
     }
 
-    private fun classify(frames: List<FloatArray>): Prediction? {
+    // Reconhecimento continuo: em vez de esperar a mao PARAR pra classificar
+    // (a maquina OCIOSO/CAPTURANDO acima), classifica os ultimos
+    // BODY_JANELA_CONTINUA quadros a cada quadro e confirma a palavra quando
+    // ela vence BODY_VOTOS_CONTINUO vezes seguidas com confianca alta.
+    //
+    // A maquina de captura so fecha o trecho quando a mao para. Sinalizando
+    // sem pausa a mao nunca para, a captura bate no teto e o modelo recebe o
+    // fim de um sinal colado no comeco do outro. Simulado com os 200 clipes
+    // emendados sem pausa, a 13 quadros/s (computer/treino/diagnostico/
+    // testa_continuo.py): frase inteira certa 24% -> 85%, palavras
+    // reconhecidas 65% -> 98%. Sinal isolado continua certo (171/175).
+    private fun processarContinuo(
+        normalized: FloatArray,
+        agora: Long,
+        onLetra: (letra: String, confianca: Float, modo: String) -> Unit,
+        onFeedback: (mensagem: String, nivel: Int) -> Unit
+    ): String? {
+        // Depois da lixeira (ou de limpar a frase) nada sai ate a mao se
+        // mexer de novo: com a mao parada onde o sinal terminou, o modelo
+        // segue vendo a palavra (medido: PESSOA em 1.00 por ~9s seguidos), e
+        // sem esta trava a palavra recem-apagada voltaria sozinha. Refazer o
+        // sinal e o que a libera, com a contagem de votos comecando do zero.
+        if (aguardandoNovoSinal && ultimoMovimento > LibrasAnalyzer.BODY_START_MOTION) {
+            aguardandoNovoSinal = false
+            candidatoContinuo = ""
+            votosContinuo = 0
+        }
+
+        janelaContinua.addLast(normalized)
+        while (janelaContinua.size > LibrasAnalyzer.BODY_JANELA_CONTINUA) {
+            janelaContinua.removeFirst()
+        }
+        if (janelaContinua.size < LibrasAnalyzer.BODY_JANELA_CONTINUA) {
+            onLetra("-", 0f, "corpo")
+            onFeedback("PRONTO - FAÇA O SINAL", LibrasAnalyzer.FEEDBACK_BOM)
+            return null
+        }
+
+        val prediction = classify(janelaContinua.toList(), agora)
+        // Uma linha por quadro: o que o modelo ve e quantos votos tem. E o que
+        // mostra, no aparelho, por que uma palavra demora (confianca rondando
+        // abaixo do corte) ou aparece sozinha.
+        if (prediction != null) {
+            Log.v("BodyContinuo", "%s %.2f votos=%d".format(
+                prediction.letra, prediction.confianca,
+                if (prediction.letra == candidatoContinuo) votosContinuo + 1 else 1))
+        }
+        val confiante = prediction != null &&
+            prediction.letra != "NEUTRO" &&
+            prediction.confianca >= LibrasAnalyzer.BODY_CONFIANCA_CONTINUA
+
+        if (prediction == null || !confiante) {
+            candidatoContinuo = ""
+            votosContinuo = 0
+            onLetra("-", 0f, "corpo")
+            onFeedback("PRONTO - FAÇA O SINAL", LibrasAnalyzer.FEEDBACK_BOM)
+            return null
+        }
+
+        votosContinuo = if (prediction.letra == candidatoContinuo) votosContinuo + 1 else 1
+        candidatoContinuo = prediction.letra
+        // A mesma palavra nunca entra duas vezes seguidas na frase. Compara com
+        // a ultima ESCRITA, nao com a ultima reconhecida: apagada na lixeira,
+        // ela deixa de ser a ultima e pode sair de novo.
+        if (votosContinuo < LibrasAnalyzer.BODY_VOTOS_CONTINUO ||
+            aguardandoNovoSinal ||
+            prediction.letra.uppercase() == bodyTokens.lastOrNull()) {
+            return null
+        }
+
+        ultimaClasseCorpo = prediction.letra
+        bodyTokens.add(prediction.letra.uppercase())
+        onLetra(prediction.letra, prediction.confianca, "corpo")
+        onFeedback(
+            "CORPO: ${SentenceTranslator.traduzirCorpo(prediction.letra).uppercase()}",
+            LibrasAnalyzer.FEEDBACK_BOM
+        )
+        return SentenceTranslator.traduzirFrase(bodyTokens)
+    }
+
+    private val entradaModelo =
+        Array(1) { Array(LibrasAnalyzer.BODY_WINDOW) { FloatArray(LibrasAnalyzer.BODY_FEATURES) } }
+
+    private fun classify(frames: List<FloatArray>, agora: Long = 0L): Prediction? {
         val interpreter = bodyInterpreter ?: return null
         val labels = labelsCorpo
         if (frames.size < LibrasAnalyzer.BODY_MIN_FRAMES || labels.isEmpty()) return null
 
         val sampled = LibrasMath.resample(frames, LibrasAnalyzer.BODY_WINDOW)
-        val input = Array(1) { Array(LibrasAnalyzer.BODY_WINDOW) { FloatArray(LibrasAnalyzer.BODY_FEATURES) } }
+        // Reaproveitada: no modo continuo isto roda a cada quadro.
+        val input = entradaModelo
         sampled.forEachIndexed { index, frame ->
             frame.copyInto(input[0][index])
         }
         val output = Array(1) { FloatArray(labels.size) }
+        val inicio = System.nanoTime()
         interpreter.run(input, output)
+        registrarInferencia(System.nanoTime() - inicio, agora)
         val probs = output[0]
         val idx = probs.indices.maxByOrNull { probs[it] } ?: return null
         val second = probs.indices
             .filter { it != idx }
             .maxOfOrNull { probs[it] } ?: 0f
         return Prediction(labels[idx], probs[idx], "corpo", probs[idx] - second)
+    }
+
+    private fun registrarInferencia(nanos: Long, agora: Long) {
+        inferenciasNoPeriodo++
+        inferenciaNanosNoPeriodo += nanos
+        if (agora == 0L) return
+        if (ultimoLogInferencia == 0L) ultimoLogInferencia = agora
+        if (agora - ultimoLogInferencia < LibrasAnalyzer.PERF_LOG_INTERVAL_MS) return
+        val segundos = (agora - ultimoLogInferencia) / 1000f
+        Log.d("BodyGestureEngine", "corpo: %d inferencias em %.1fs, media %.1f ms".format(
+            inferenciasNoPeriodo, segundos,
+            inferenciaNanosNoPeriodo / 1_000_000f / inferenciasNoPeriodo))
+        inferenciasNoPeriodo = 0
+        inferenciaNanosNoPeriodo = 0L
+        ultimoLogInferencia = agora
     }
 
     private fun isReliable(prediction: Prediction): Boolean {
@@ -416,6 +545,9 @@ internal class BodyGestureEngine(private val context: Context) {
         bodyEndCount = 0
         bodyMovementBuffer.clear()
         bodyGestureBuffer.clear()
+        janelaContinua.clear()
+        candidatoContinuo = ""
+        votosContinuo = 0
     }
 
     // Chamado quando não há pose ou mão no quadro (o LibrasAnalyzer já
@@ -433,7 +565,12 @@ internal class BodyGestureEngine(private val context: Context) {
     // captura — usado pelo gesto de "mão aberta limpa" e por limparFrase().
     fun limparTokens() {
         bodyTokens.clear()
+        esquecerUltimaPalavra()
+    }
+
+    private fun esquecerUltimaPalavra() {
         ultimaClasseCorpo = ""
+        aguardandoNovoSinal = true
     }
 
     // Remove o último sinal e re-traduz; retorna a nova frase, ou null se
@@ -442,7 +579,7 @@ internal class BodyGestureEngine(private val context: Context) {
     fun apagarUltimoToken(): String? {
         if (bodyTokens.isEmpty()) return null
         bodyTokens.removeAt(bodyTokens.size - 1)
-        ultimaClasseCorpo = ""
+        esquecerUltimaPalavra()
         return SentenceTranslator.traduzirFrase(bodyTokens)
     }
 

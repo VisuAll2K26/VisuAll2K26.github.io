@@ -184,7 +184,8 @@ class LibrasAnalyzer(
         const val BODY_POINT_LEFT_SHOULDER = 11
         const val BODY_POINT_RIGHT_SHOULDER = 12
         // Valores de referência do pipeline Python (modo corpo):
-        // LIMIAR_INICIO=0.050, LIMIAR_FIM=0.030, CONFIANCA_CORPO=0.85, cooldown 2s.
+        // LIMIAR_INICIO=0.050, LIMIAR_FIM=0.030, CONFIANCA_CORPO=0.85. O cooldown
+        // de 2s do Python nao existe aqui: ver processarFrame no BodyGestureEngine.
         const val BODY_START_MOTION      = 0.050f
         // Baixado de 0.030 depois de MEDIR o movimento real de cada sinal nos
         // 200 clipes gravados (computer/treino/diagnostico/mede_movimento.py). O valor
@@ -249,7 +250,21 @@ class LibrasAnalyzer(
         // COMPUTADOR continuaram. Se voltar a reconhecer fácil demais, o
         // caminho é exigir margem como as letras fazem, não subir isto de novo.
         const val BODY_CONFIDENCE        = 0.85f
-        const val BODY_COOLDOWN          = 2_000L
+        // Reconhecimento continuo do corpo (BodyGestureEngine.processarContinuo):
+        // palavras em sequencia sem esperar a mao parar. false volta para a
+        // maquina de captura antiga (OCIOSO/CAPTURANDO), intacta.
+        //
+        // Os tres numeros sairam da varredura em testa_continuo.py, com 300
+        // frases de 3 sinais emendados a 13 quadros/s. Janela de 10 quadros
+        // (~0,8s), 5 votos e 0.95 deram 85% de frases certas e 3% de palavras
+        // a mais; 3 votos ou 0.85 dobravam as palavras a mais, que aparecem na
+        // transicao de um sinal pro outro. Os 0.95 aqui nao sao os 0.85 de cima:
+        // uma janela de transicao chega a 0.85 com facilidade, um sinal de
+        // verdade passa de 0.95 varias vezes seguidas.
+        const val BODY_CONTINUO          = true
+        const val BODY_JANELA_CONTINUA   = 10
+        const val BODY_VOTOS_CONTINUO    = 5
+        const val BODY_CONFIANCA_CONTINUA = 0.95f
         const val CALIBRATION_MIN_FRAMES = 8
         const val CALIBRATION_MAX_FRAMES = 45
         const val CALIBRATION_TARGET_FRAMES = 24
@@ -961,6 +976,8 @@ class LibrasAnalyzer(
             // No corpo apagamos o último SINAL (token) e re-traduzimos.
             val novaFrase = bodyEngine.apagarUltimoToken()
             if (novaFrase != null) {
+                // O "SURDO 99%" na tela era da palavra que acabou de sair
+                notificarLetra("-", 0f, "corpo")
                 sentence.definirTrechoCorpo(novaFrase)
                 onFraseUpdate(sentence.frase)
                 return
