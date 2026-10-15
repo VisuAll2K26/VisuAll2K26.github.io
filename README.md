@@ -34,14 +34,17 @@ o modelo vem de computer/treino/ e e copiado pra dentro do app
 
 ## Onde o código mora
 
-| | Endereço | Papel |
-|---|---|---|
-| **Repositório de trabalho** | [Juanduarte050508/VisuAll](https://github.com/Juanduarte050508/VisuAll) | **É aqui que todo mundo envia.** Build do app, APK do site, testes. |
-| **Cópia da organização** | [VisuAll2K26/VisuAll2K26.github.io](https://github.com/VisuAll2K26/VisuAll2K26.github.io) | Espelho automático de tudo, a cada push. Publica o site. |
-| **Site** | [visuall2k26.github.io](https://visuall2k26.github.io/) | Sai da pasta `site/`. |
+Tudo fica em um repositório só, o da organização:
+**[VisuAll2K26/VisuAll2K26.github.io](https://github.com/VisuAll2K26/VisuAll2K26.github.io)**.
 
-Não envie nada direto para a cópia da organização: o próximo push daqui
-sobrescreve. Como o espelho funciona: [`.github/workflows/espelhar-organizacao.yml`](.github/workflows/espelhar-organizacao.yml).
+| | Endereço |
+|---|---|
+| Código, build do app e APK | este repositório |
+| Site | [visuall2k26.github.io](https://visuall2k26.github.io/), publicado da pasta `site/` |
+| APK mais recente | [releases/download/app/VisuAll.apk](https://github.com/VisuAll2K26/VisuAll2K26.github.io/releases/download/app/VisuAll.apk) |
+
+O nome `VisuAll2K26.github.io` não é capricho: é o que o GitHub exige para o
+site ficar no endereço curto, sem nada depois da barra.
 
 ---
 

@@ -129,7 +129,7 @@ instalar nada disso separado.
 Abra o **PowerShell** (tecla Windows, digite "powershell", Enter) e:
 
 ```powershell
-git clone https://github.com/Juanduarte050508/VisuAll.git
+git clone https://github.com/VisuAll2K26/VisuAll2K26.github.io.git
 cd VisuAll
 ```
 

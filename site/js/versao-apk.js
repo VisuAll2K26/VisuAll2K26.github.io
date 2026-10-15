@@ -7,7 +7,7 @@
     var alvos = document.querySelectorAll('[data-versao-apk]');
     if(!alvos.length || !window.fetch) return;
 
-    fetch('https://api.github.com/repos/Juanduarte050508/VisuAll/releases/tags/app')
+    fetch('https://api.github.com/repos/VisuAll2K26/VisuAll2K26.github.io/releases/tags/app')
         .then(function(r){ return r.ok ? r.json() : null; })
         .then(function(release){
             if(!release || !release.assets) return;
