@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>VisuAll · Links</title>
+    <meta name="description" content="Todos os links do VisuAll: equipe, repositório, vídeos e redes.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="VisuAll · Links">
+    <meta property="og:description" content="Equipe, repositório, vídeos e redes do VisuAll.">
+    <meta property="og:image" content="https://visuall2k26.github.io/images/logo-completa.jpg">
+    <link rel="icon" href="../images/favicon-64.png" type="image/png">
+    <link rel="apple-touch-icon" href="../images/favicon-180.png">
+    <!-- Endereço fixo de propósito: é para cá que o QR code da feira aponta
+         (images/qr-links.svg). Mude os links aqui à vontade; o QR impresso
+         continua valendo. -->
+
+    <!-- Mesmas cores, fonte e espaçamentos do site principal -->
+    <link rel="stylesheet" href="../CSS/_global.css?v=1">
+    <style>
+        *{box-sizing:border-box}
+        html{-webkit-text-size-adjust:100%;background:var(--color-preto)}
+        body{
+            position:relative;margin:0;min-height:100vh;overflow-x:hidden;
+            padding:calc(var(--spacing-36) + env(safe-area-inset-top)) var(--margem-pagina) var(--spacing-60);
+            background:var(--color-preto);color:var(--color-branco);
+            font-family:var(--font-principal);font-weight:var(--font-weight-light);line-height:var(--leading-body);
+        }
+        main{position:relative;z-index:1;width:100%;max-width:560px;margin:0 auto}
+        a{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
+        a:focus-visible,button:focus-visible{outline:2px solid var(--color-amarelo);outline-offset:3px}
+        h1,h2,h3,p{margin:0}
+
+        /* Brilho dourado nas bordas da tela -------------------------------- */
+        /* Fica preso à tela (não rola): uma luz amarela no alto, uma dourada
+           no canto de baixo e um contorno quente bem leve nas laterais. O
+           centro continua preto, onde está o conteúdo. */
+        .brilho{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+        .brilho::before,.brilho::after{content:"";position:absolute;border-radius:50%;animation:respira 9s ease-in-out infinite alternate}
+        .brilho::before{
+            top:-38vh;left:50%;width:150vw;height:62vh;translate:-50% 0;
+            background:radial-gradient(closest-side,rgba(255,211,77,.30),rgba(232,163,31,.10) 55%,transparent);
+        }
+        .brilho::after{
+            bottom:-30vh;right:-35vw;width:95vw;height:60vh;
+            background:radial-gradient(closest-side,rgba(232,163,31,.22),transparent);
+            animation-delay:-4.5s;
+        }
+        .brilho span{position:absolute;inset:0;box-shadow:inset 0 0 90px rgba(232,163,31,.10)}
+        @keyframes respira{from{opacity:.65}to{opacity:1}}
+
+        /* Fio dourado no topo da tela */
+        .fio{position:fixed;top:0;left:0;right:0;z-index:2;height:2px;background:linear-gradient(90deg,transparent,var(--color-dourado) 20%,var(--color-amarelo) 50%,var(--color-dourado) 80%,transparent);opacity:.9}
+
+        /* Entrada: cada bloco sobe um pouco e aparece, um depois do outro */
+        .entra{animation:entra .8s var(--mola) both}
+        main > .entra:nth-child(2){animation-delay:.08s}
+        main > .entra:nth-child(3){animation-delay:.16s}
+        main > .entra:nth-child(4){animation-delay:.24s}
+        main > .entra:nth-child(5){animation-delay:.32s}
+        @keyframes entra{from{opacity:0;translate:0 16px}}
+
+        /* Topo ------------------------------------------------------------- */
+        .topo{text-align:center;margin-bottom:var(--spacing-36)}
+        .logo{display:block;width:118px;height:auto;margin:0 auto var(--spacing-18);filter:drop-shadow(0 0 28px rgba(255,211,77,.35))}
+        h1{margin-bottom:var(--spacing-12);font-size:38px;font-weight:var(--font-weight-regular);line-height:1.08;letter-spacing:var(--tracking-apertado)}
+        h1 em{font-style:normal;background:linear-gradient(100deg,var(--color-amarelo),var(--color-dourado));-webkit-background-clip:text;background-clip:text;color:transparent}
+        .lead{max-width:360px;margin:0 auto;color:var(--color-prata);font-size:17px}
+
+        /* Botões ----------------------------------------------------------- */
+        .acoes{display:grid;gap:var(--spacing-12);margin-bottom:var(--spacing-60)}
+        .btn{display:flex;justify-content:center;align-items:center;gap:var(--spacing-6);min-height:56px;padding:16px 24px;border-radius:var(--radius-3xl);font-size:var(--text-label);font-weight:var(--font-weight-semibold);letter-spacing:var(--tracking-label);text-transform:uppercase;transition:background var(--t-rapida),color var(--t-rapida),border-color var(--t-rapida),box-shadow var(--t-media)}
+        .btn--primario{background:var(--color-amarelo);color:var(--color-preto);box-shadow:0 10px 36px -10px rgba(255,211,77,.55)}
+        .btn--primario:hover,.btn--primario:focus-visible{background:var(--color-branco);box-shadow:0 10px 36px -10px rgba(255,255,255,.4)}
+        .btn--contorno{border:1px solid var(--color-linha);background:rgba(0,0,0,.4)}
+        .btn--contorno:hover,.btn--contorno:focus-visible{border-color:var(--color-amarelo);color:var(--color-amarelo)}
+
+        /* Rótulo de seção, com um fio dourado que se apaga à direita */
+        section{margin-bottom:var(--spacing-60)}
+        .rotulo{display:flex;align-items:center;gap:var(--spacing-12);margin-bottom:var(--spacing-18);color:var(--color-amarelo);font-size:var(--text-caption);font-weight:var(--font-weight-semibold);letter-spacing:.08em;text-transform:uppercase}
+        .rotulo::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(232,163,31,.6),transparent)}
+
+        /* Canais do projeto ------------------------------------------------ */
+        .canais{margin:0;padding:0;list-style:none;display:grid;gap:var(--spacing-12)}
+        .canal{
+            display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:0 var(--spacing-18);
+            min-height:76px;padding:var(--spacing-12) var(--spacing-18) var(--spacing-12) var(--spacing-12);
+            border:1px solid var(--color-linha);border-radius:var(--radius-3xl);background:var(--color-cartao);
+            transition:border-color var(--t-rapida),background var(--t-rapida),translate var(--t-media);
+        }
+        .canal-icone{
+            grid-row:1 / span 2;display:grid;place-items:center;width:48px;height:48px;border-radius:16px;
+            border:1px solid rgba(255,211,77,.35);background:var(--color-veu-amarelo);color:var(--color-amarelo);
+            transition:background var(--t-rapida),color var(--t-rapida),border-color var(--t-rapida);
+        }
+        .canal-icone svg{width:22px;height:22px}
+        .canal-nome{grid-column:2;align-self:end;font-size:18px;font-weight:var(--font-weight-regular);line-height:1.25}
+        .canal-valor{grid-column:2;align-self:start;font-size:var(--text-label);color:var(--color-cinza);overflow-wrap:anywhere}
+        .canal-seta{grid-column:3;grid-row:1 / span 2;color:var(--color-amarelo);font-size:18px;transition:translate var(--t-media)}
+        .canal:hover,.canal:focus-visible{border-color:rgba(255,211,77,.55);background:var(--color-cartao-destaque)}
+        .canal:hover .canal-icone,.canal:focus-visible .canal-icone{background:var(--color-amarelo);border-color:var(--color-amarelo);color:var(--color-preto)}
+        .canal:hover .canal-seta,.canal:focus-visible .canal-seta{translate:3px -3px}
+        .canal:active{translate:0 1px}
+
+        /* Equipe: o mesmo leque da página principal (js/carrossel.js) ------- */
+        /* Sem JavaScript, uma fila que rola para o lado. */
+        .grade-equipe{display:grid;grid-auto-flow:column;grid-auto-columns:78%;gap:var(--spacing-12);overflow-x:auto;padding-block:var(--spacing-6);scroll-snap-type:x mandatory;scrollbar-width:none}
+        .grade-equipe::-webkit-scrollbar{display:none}
+        .integrante{
+            display:grid;align-content:start;padding:var(--spacing-12) var(--spacing-12) var(--spacing-18);
+            border:1px solid var(--color-linha);border-radius:var(--radius-3xl);background:var(--color-cartao);scroll-snap-align:center;
+        }
+        .integrante-foto{width:100%;height:auto;aspect-ratio:1;border-radius:var(--spacing-18);object-fit:cover;filter:grayscale(1);transition:filter .6s ease}
+        .integrante h3{margin:var(--spacing-12) var(--spacing-6);min-height:2.4em;font-size:19px;font-weight:var(--font-weight-regular);line-height:1.2;letter-spacing:-.02em}
+        .integrante-links{display:grid;gap:var(--spacing-6)}
+        .chip{
+            display:flex;justify-content:center;align-items:center;gap:var(--spacing-6);min-height:44px;padding:10px 12px;
+            border:1px solid var(--color-linha);border-radius:var(--radius-full);
+            font-size:13px;font-weight:var(--font-weight-semibold);letter-spacing:var(--tracking-label);text-transform:uppercase;
+            transition:border-color var(--t-rapida),color var(--t-rapida),background var(--t-rapida);
+        }
+        .chip svg{width:16px;height:16px;color:var(--color-amarelo);transition:color var(--t-rapida)}
+        .chip:hover,.chip:focus-visible{border-color:var(--color-amarelo);background:var(--color-amarelo);color:var(--color-preto)}
+        .chip:hover svg,.chip:focus-visible svg{color:var(--color-preto)}
+
+        .grade-equipe.carrossel-vivo{
+            --lc:calc((100vw - 2 * var(--margem-pagina)) * .64);   /* largura do cartão central */
+            --vao:var(--spacing-12);
+            --p1:calc(var(--lc) * .915 + var(--vao));
+            --p2:calc(var(--lc) * .745 + var(--vao));
+            position:relative;display:block;height:calc(var(--lc) + 200px);overflow:hidden;padding:0;touch-action:pan-y;
+            /* os cartões das pontas se apagam na borda, em vez de serem cortados */
+            -webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);
+                    mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);
+        }
+        .carrossel-vivo .integrante{
+            position:absolute;left:50%;top:50%;width:var(--lc);
+            translate:calc(-50% + var(--s, 0) * (min(var(--d, 0), 1) * var(--p1) + max(var(--d, 0) - 1, 0) * var(--p2))) -50%;
+            scale:calc(1 - var(--d, 0) * .17);opacity:calc(1 - var(--d, 0) * .3);z-index:calc(10 - var(--d, 0));
+            cursor:pointer;will-change:translate,scale,opacity;
+            transition:translate .9s cubic-bezier(.16,1,.3,1),scale .9s cubic-bezier(.16,1,.3,1),opacity .6s ease,border-color var(--t-media),box-shadow var(--t-media);
+        }
+        .carrossel-vivo .integrante.dando-volta{opacity:0;transition:opacity .22s ease}
+        .carrossel-vivo .integrante.sem-transicao{transition:none}
+        .carrossel-vivo .integrante.no-centro{border-color:var(--color-amarelo);cursor:default;box-shadow:0 18px 60px -18px rgba(255,211,77,.45)}
+        .carrossel-vivo .integrante.no-centro .integrante-foto{filter:none}
+
+        .carrossel-controles{display:flex;align-items:center;justify-content:center;gap:var(--spacing-24);margin-top:var(--spacing-6)}
+        .carrossel-seta{display:grid;place-items:center;width:48px;height:48px;border:1px solid var(--color-amarelo);border-radius:var(--radius-full);background:transparent;font:inherit;font-size:20px;line-height:1;color:var(--color-amarelo);cursor:pointer;transition:background var(--t-rapida),color var(--t-rapida)}
+        .carrossel-seta:hover{background:var(--color-amarelo);color:var(--color-preto)}
+        .carrossel-bolinhas{display:flex;gap:var(--spacing-12)}
+        .carrossel-bolinha{position:relative;flex:none;width:10px;height:10px;padding:0;border:1px solid var(--color-amarelo);border-radius:var(--radius-full);background:transparent;cursor:pointer;transition:background var(--t-rapida),width .5s var(--mola)}
+        .carrossel-bolinha::after{content:"";position:absolute;inset:-14px -6px}
+        .carrossel-bolinha[aria-current="true"]{width:30px;background:var(--color-amarelo)}
+        .dica{margin-top:var(--spacing-12);text-align:center;font-size:var(--text-caption);color:var(--color-cinza)}
+
+        footer{text-align:center;color:var(--color-cinza);font-size:13px}
+        footer img{display:block;width:28px;height:28px;margin:0 auto var(--spacing-12);opacity:.8}
+        footer a{color:var(--color-amarelo)}
+
+        /* PC: a página continua uma coluna estreita (é feita para o celular),
+           só com mais ar; os canais ficam em duas colunas e o leque usa
+           cartões de tamanho fixo. */
+        @media (min-width:760px){
+            body{padding-top:var(--spacing-96)}
+            main{max-width:680px}
+            .logo{width:140px}
+            h1{font-size:52px}
+            .acoes{grid-template-columns:1fr 1fr}
+            .canais{grid-template-columns:1fr 1fr}
+            .canais li:last-child{grid-column:1 / -1}
+            .grade-equipe.carrossel-vivo{--lc:240px;--vao:var(--spacing-18)}
+            .brilho::before{width:110vw;height:70vh}
+            .brilho::after{right:-20vw;width:60vw}
+        }
+        @media (prefers-reduced-motion:reduce){
+            *,*::before,*::after{animation:none!important;transition:none!important}
+        }
+    </style>
+</head>
+<body>
+    <!-- Ícones das marcas (Simple Icons, CC0) e do e-mail, desenhados uma vez -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
+        <symbol id="i-youtube" viewBox="0 0 24 24"><path fill="currentColor" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></symbol>
+        <symbol id="i-instagram" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/></symbol>
+        <symbol id="i-tiktok" viewBox="0 0 24 24"><path fill="currentColor" d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></symbol>
+        <symbol id="i-email" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="3"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></g></symbol>
+        <symbol id="i-linkedin" viewBox="0 0 24 24"><path fill="currentColor" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></symbol>
+        <symbol id="i-whatsapp" viewBox="0 0 24 24"><path fill="currentColor" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></symbol>
+    </svg>
+
+    <div class="brilho" aria-hidden="true"><span></span></div>
+    <div class="fio" aria-hidden="true"></div>
+
+    <main>
+        <header class="topo entra">
+            <img class="logo" src="../images/logo-completa.webp" alt="VisuAll" width="480" height="440">
+            <h1>Siga o <em>VisuAll</em></h1>
+            <p class="lead">Libras em tempo real na câmera do seu smartphone, 100% local e sem internet.</p>
+        </header>
+
+        <div class="acoes entra">
+            <a class="btn btn--primario" href="../baixar/">Baixar o app</a>
+            <a class="btn btn--contorno" href="../html/index.html">Conhecer o projeto</a>
+        </div>
+
+        <section class="entra" aria-labelledby="t-projeto">
+            <h2 class="rotulo" id="t-projeto">O projeto</h2>
+            <ul class="canais">
+                <li>
+                    <a class="canal" href="https://github.com/VisuAll2K26/VisuAll2K26.github.io" target="_blank" rel="noopener">
+                        <span class="canal-icone"><svg aria-hidden="true"><use href="#i-github"/></svg></span>
+                        <span class="canal-nome">GitHub</span>
+                        <span class="canal-valor">Código-fonte do VisuAll</span>
+                        <span class="canal-seta" aria-hidden="true">↗</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="canal" href="https://www.youtube.com/@VisuAll2K26" target="_blank" rel="noopener">
+                        <span class="canal-icone"><svg aria-hidden="true"><use href="#i-youtube"/></svg></span>
+                        <span class="canal-nome">YouTube</span>
+                        <span class="canal-valor">@VisuAll2K26</span>
+                        <span class="canal-seta" aria-hidden="true">↗</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="canal" href="https://www.instagram.com/visuall2k26" target="_blank" rel="noopener">
+                        <span class="canal-icone"><svg aria-hidden="true"><use href="#i-instagram"/></svg></span>
+                        <span class="canal-nome">Instagram</span>
+                        <span class="canal-valor">@visuall2k26</span>
+                        <span class="canal-seta" aria-hidden="true">↗</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="canal" href="https://www.tiktok.com/@visuall2k26" target="_blank" rel="noopener">
+                        <span class="canal-icone"><svg aria-hidden="true"><use href="#i-tiktok"/></svg></span>
+                        <span class="canal-nome">TikTok</span>
+                        <span class="canal-valor">@visuall2k26</span>
+                        <span class="canal-seta" aria-hidden="true">↗</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="canal" href="mailto:visuall2k26@gmail.com">
+                        <span class="canal-icone"><svg aria-hidden="true"><use href="#i-email"/></svg></span>
+                        <span class="canal-nome">E-mail</span>
+                        <span class="canal-valor">visuall2k26@gmail.com</span>
+                        <span class="canal-seta" aria-hidden="true">↗</span>
+                    </a>
+                </li>
+            </ul>
+        </section>
+
+        <section class="entra" aria-labelledby="t-equipe">
+            <h2 class="rotulo" id="t-equipe">Equipe</h2>
+            <!-- WhatsApp: https://wa.me/ + 55 + DDD + número, só dígitos. O
+                 ?text= já abre a conversa com uma mensagem pronta. -->
+            <div class="grade-equipe" role="region" aria-label="Integrantes da equipe" tabindex="0">
+                <article class="integrante">
+                    <img class="integrante-foto" src="../images/team/joao.jpeg" alt="João Victor Pereira Gimenes" width="88" height="88">
+                    <h3>João Victor Pereira Gimenes</h3>
+                    <div class="integrante-links">
+                        <a class="chip" href="https://www.linkedin.com/in/jo%C3%A3o-victor-pereira-gimenes-191615374/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
+                        <a class="chip" href="https://wa.me/5511989066895?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                    </div>
+                </article>
+
+                <article class="integrante">
+                    <img class="integrante-foto" src="../images/team/rafael.jpeg" alt="Rafael Boletini de Oliveira" width="88" height="88">
+                    <h3>Rafael Boletini de Oliveira</h3>
+                    <div class="integrante-links">
+                        <a class="chip" href="https://www.linkedin.com/in/rafael-boletini-de-oliveira-24b782275/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
+                        <a class="chip" href="https://wa.me/5511918988513?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                    </div>
+                </article>
+
+                <article class="integrante">
+                    <img class="integrante-foto" src="../images/team/juan.jpeg" alt="Juan Duarte Moura" width="88" height="88">
+                    <h3>Juan Duarte Moura</h3>
+                    <div class="integrante-links">
+                        <a class="chip" href="https://www.linkedin.com/in/juan-duarte-moura/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
+                        <a class="chip" href="https://wa.me/5511958528096?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                    </div>
+                </article>
+
+                <article class="integrante">
+                    <img class="integrante-foto" src="../images/team/victor.jpg" alt="Victor Rossi Sales Zanandré" width="88" height="88">
+                    <h3>Victor Rossi Sales Zanandré</h3>
+                    <div class="integrante-links">
+                        <a class="chip" href="https://www.linkedin.com/in/victor-zanandre/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
+                        <a class="chip" href="https://wa.me/5511950357424?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                    </div>
+                </article>
+
+                <article class="integrante">
+                    <img class="integrante-foto" src="../images/team/julio.jpeg" alt="Julio Cesar da Silva Cocco" width="88" height="88">
+                    <h3>Julio Cesar da Silva Cocco</h3>
+                    <div class="integrante-links">
+                        <a class="chip" href="https://www.linkedin.com/in/julio-cesar-da-silva-cocco-085400338/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
+                        <a class="chip" href="https://wa.me/5511916200569?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                    </div>
+                </article>
+            </div>
+            <p class="dica">Arraste para o lado ou toque num cartão para trazê-lo ao centro.</p>
+        </section>
+
+        <footer class="entra">
+            <img src="../images/favicon-64.png" alt="" width="28" height="28">
+            <p>Engenharia de Software · FIAP · 2026<br><a href="../html/index.html">visuall2k26.github.io</a></p>
+        </footer>
+    </main>
+
+    <!-- O mesmo leque da página principal -->
+    <script src="../js/carrossel.js?v=1" defer></script>
+</body>
+</html>

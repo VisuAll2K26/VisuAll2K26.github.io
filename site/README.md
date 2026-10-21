@@ -31,6 +31,7 @@ site/
 ├── index.html          porta de entrada: só redireciona para html/index.html
 ├── html/index.html     A PÁGINA (todas as seções estão aqui)
 ├── baixar/             a página para onde o QR code aponta
+├── links/              o "link na bio" da feira: equipe, repositório e redes
 ├── CSS/                os estilos (ordem de carga abaixo)
 ├── js/                 as interações (todas opcionais)
 ├── images/             logo, fotos da equipe, capa do vídeo, QR code
@@ -75,6 +76,15 @@ O botão **Baixar para Android** e o QR code entregam sempre o APK mais novo:
 - O QR code (`images/qr-baixar.svg`) aponta para **`/baixar/`**, uma página
   nossa, e não direto para o arquivo. Se o app mudar de lugar um dia (Play
   Store, por exemplo), só a página muda e todo QR já impresso continua valendo.
+
+## A página de links (feira)
+
+O QR code `images/qr-links.svg` aponta para **`/links/`**
+(`https://visuall2k26.github.io/links/`): repositório, YouTube, Instagram,
+TikTok e e-mail, e a equipe no mesmo leque da página principal (usa o
+`js/carrossel.js`), com LinkedIn e WhatsApp de cada um. Como no download, o QR
+leva a uma página nossa: dá para trocar ou acrescentar links sem reimprimir
+nada. As cores vêm do `CSS/_global.css`.
 
 ## As avaliações
 
