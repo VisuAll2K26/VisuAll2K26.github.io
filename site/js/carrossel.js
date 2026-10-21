@@ -61,28 +61,42 @@
         posicoes[i] = nova;
     }
 
+    var esperas = [];                   // troca de lado pendente de cada cartão
+
     function atualizar() {
         cartoes.forEach(function (cartao, i) {
             var nova = posicao(i);
-            var deuAVolta = posicoes[i] !== undefined && Math.abs(nova - posicoes[i]) > metade;
 
+            // Já está sumido, esperando para trocar de lado: só adia a troca,
+            // que vai usar a posição mais nova. Mover agora o faria atravessar
+            // a tela por cima dos outros.
+            if (esperas[i]) {
+                window.clearTimeout(esperas[i]);
+                esperas[i] = window.setTimeout(function () { reaparecer(cartao, i); }, 230);
+                return;
+            }
+
+            var deuAVolta = posicoes[i] !== undefined && Math.abs(nova - posicoes[i]) > metade;
             if (!deuAVolta) { posicionar(cartao, i, nova); return; }
 
             // quem sai por um lado e reaparece no outro some, troca de lugar
             // sem animação e volta a aparecer, em vez de atravessar a tela
             cartao.classList.add('dando-volta');
-            window.setTimeout(function () {
-                cartao.classList.add('sem-transicao');
-                posicionar(cartao, i, posicao(i));
-                void cartao.offsetWidth;
-                cartao.classList.remove('sem-transicao', 'dando-volta');
-            }, 230);
+            esperas[i] = window.setTimeout(function () { reaparecer(cartao, i); }, 230);
         });
 
         Array.prototype.forEach.call(bolinhas.children, function (bolinha, i) {
             bolinha.setAttribute('aria-current', i === ativo ? 'true' : 'false');
         });
     }
+    function reaparecer(cartao, i) {
+        esperas[i] = null;
+        cartao.classList.add('sem-transicao');
+        posicionar(cartao, i, posicao(i));
+        void cartao.offsetWidth;
+        cartao.classList.remove('sem-transicao', 'dando-volta');
+    }
+
     function destacar(indice) {
         ativo = (indice + total) % total;
         atualizar();
@@ -127,14 +141,22 @@
     // Arrastar para o lado, no celular ou com o mouse
     var inicio = null;
     var arrastou = false;
-    palco.addEventListener('pointerdown', function (evento) { inicio = evento.clientX; });
+    palco.addEventListener('pointerdown', function (evento) {
+        inicio = { x: evento.clientX, y: evento.clientY };
+        // no toque, o navegador não manda "click" depois de um arrasto: a
+        // marca do arrasto anterior não pode engolir este toque novo
+        arrastou = false;
+    });
+    // o navegador tomou o gesto para rolar a página: não foi arrasto
+    palco.addEventListener('pointercancel', function () { inicio = null; });
     palco.addEventListener('pointerup', function (evento) {
         if (inicio === null) { return; }
-        var deslocamento = evento.clientX - inicio;
+        var dx = evento.clientX - inicio.x;
+        var dy = evento.clientY - inicio.y;
         inicio = null;
-        if (Math.abs(deslocamento) > 40) {
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
             arrastou = true;
-            destacar(ativo + (deslocamento < 0 ? 1 : -1));
+            destacar(ativo + (dx < 0 ? 1 : -1));
         }
     });
 

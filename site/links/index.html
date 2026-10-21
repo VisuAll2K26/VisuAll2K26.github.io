@@ -90,7 +90,7 @@
         }
         .canal-icone{
             grid-row:1 / span 2;display:grid;place-items:center;width:48px;height:48px;border-radius:16px;
-            border:1px solid rgba(255,211,77,.35);background:var(--color-veu-amarelo);color:var(--color-amarelo);
+            border:1px solid var(--color-amarelo);background:var(--color-veu-amarelo);color:var(--color-branco);
             transition:background var(--t-rapida),color var(--t-rapida),border-color var(--t-rapida);
         }
         .canal-icone svg{width:22px;height:22px}
@@ -124,14 +124,18 @@
         .chip:hover svg,.chip:focus-visible svg{color:var(--color-preto)}
 
         .grade-equipe.carrossel-vivo{
-            --lc:calc((100vw - 2 * var(--margem-pagina)) * .64);   /* largura do cartão central */
-            --vao:var(--spacing-12);
-            --p1:calc(var(--lc) * .915 + var(--vao));
-            --p2:calc(var(--lc) * .745 + var(--vao));
-            position:relative;display:block;height:calc(var(--lc) + 200px);overflow:hidden;padding:0;touch-action:pan-y;
+            /* No celular os vizinhos ficam encaixados atrás do cartão central,
+               com uma faixa sempre à mostra dos dois lados. */
+            --lc:calc((100vw - 2 * var(--margem-pagina)) * .6);    /* largura do cartão central */
+            --p1:calc(var(--lc) * .72);                            /* centro do 1º vizinho */
+            --p2:calc(var(--lc) * .7);                             /* do 1º ao 2º: fora da tela */
+            position:relative;display:block;height:calc(var(--lc) + 200px);overflow:hidden;overflow:clip;padding:0;touch-action:pan-y;
+            /* Sem isto o navegador "encaixa" a rolagem do palco num cartão
+               vizinho e o leque inteiro sai do centro. */
+            scroll-snap-type:none;
             /* os cartões das pontas se apagam na borda, em vez de serem cortados */
-            -webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);
-                    mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);
+            -webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
+                    mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
         }
         .carrossel-vivo .integrante{
             position:absolute;left:50%;top:50%;width:var(--lc);
@@ -169,7 +173,7 @@
             .acoes{grid-template-columns:1fr 1fr}
             .canais{grid-template-columns:1fr 1fr}
             .canais li:last-child{grid-column:1 / -1}
-            .grade-equipe.carrossel-vivo{--lc:240px;--vao:var(--spacing-18)}
+            .grade-equipe.carrossel-vivo{--lc:240px;--p1:calc(var(--lc) * .915 + var(--spacing-18));--p2:calc(var(--lc) * .745 + var(--spacing-18))}
             .brilho::before{width:110vw;height:70vh}
             .brilho::after{right:-20vw;width:60vw}
         }
@@ -261,7 +265,7 @@
                     <h3>João Victor Pereira Gimenes</h3>
                     <div class="integrante-links">
                         <a class="chip" href="https://www.linkedin.com/in/jo%C3%A3o-victor-pereira-gimenes-191615374/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
-                        <a class="chip" href="https://wa.me/5511989066895?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                        <a class="chip" href="https://wa.me/5511989066895?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20no%20NEXT%20e%20queria%20conversar%20mais%20sobre." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
                     </div>
                 </article>
 
@@ -270,7 +274,7 @@
                     <h3>Rafael Boletini de Oliveira</h3>
                     <div class="integrante-links">
                         <a class="chip" href="https://www.linkedin.com/in/rafael-boletini-de-oliveira-24b782275/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
-                        <a class="chip" href="https://wa.me/5511918988513?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                        <a class="chip" href="https://wa.me/5511918988513?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20no%20NEXT%20e%20queria%20conversar%20mais%20sobre." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
                     </div>
                 </article>
 
@@ -279,7 +283,7 @@
                     <h3>Juan Duarte Moura</h3>
                     <div class="integrante-links">
                         <a class="chip" href="https://www.linkedin.com/in/juan-duarte-moura/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
-                        <a class="chip" href="https://wa.me/5511958528096?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                        <a class="chip" href="https://wa.me/5511958528096?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20no%20NEXT%20e%20queria%20conversar%20mais%20sobre." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
                     </div>
                 </article>
 
@@ -288,7 +292,7 @@
                     <h3>Victor Rossi Sales Zanandré</h3>
                     <div class="integrante-links">
                         <a class="chip" href="https://www.linkedin.com/in/victor-zanandre/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
-                        <a class="chip" href="https://wa.me/5511950357424?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                        <a class="chip" href="https://wa.me/5511950357424?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20no%20NEXT%20e%20queria%20conversar%20mais%20sobre." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
                     </div>
                 </article>
 
@@ -297,7 +301,7 @@
                     <h3>Julio Cesar da Silva Cocco</h3>
                     <div class="integrante-links">
                         <a class="chip" href="https://www.linkedin.com/in/julio-cesar-da-silva-cocco-085400338/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-linkedin"/></svg>LinkedIn</a>
-                        <a class="chip" href="https://wa.me/5511916200569?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20na%20feira." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+                        <a class="chip" href="https://wa.me/5511916200569?text=Ol%C3%A1!%20Conheci%20o%20VisuAll%20no%20NEXT%20e%20queria%20conversar%20mais%20sobre." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
                     </div>
                 </article>
             </div>
@@ -311,6 +315,6 @@
     </main>
 
     <!-- O mesmo leque da página principal -->
-    <script src="../js/carrossel.js?v=1" defer></script>
+    <script src="../js/carrossel.js?v=2" defer></script>
 </body>
 </html>

@@ -1012,6 +1012,8 @@
     display: block;
     height: calc(var(--lc) + 190px);
     overflow: hidden;
+    overflow: clip;         /* corta sem virar área de rolagem */
+    scroll-snap-type: none; /* senão o navegador encaixa o palco num cartão e tira o leque do centro */
     padding: 0;
     touch-action: pan-y;
 }
