@@ -2,47 +2,160 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Baixar o VisuAll</title>
     <meta name="description" content="Baixe a versão mais recente do VisuAll para Android.">
     <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="Baixar o VisuAll">
+    <meta property="og:description" content="Libras em tempo real na câmera do seu smartphone. Baixe para Android.">
+    <meta property="og:image" content="https://visuall2k26.github.io/images/logo-completa.jpg">
     <link rel="icon" href="../images/favicon-64.png" type="image/png">
+    <link rel="apple-touch-icon" href="../images/favicon-180.png">
     <!-- Endereço fixo de propósito: é para cá que o QR code aponta. Se o app
          mudar de lugar (Play Store, outro repositório), só o link do botão
          abaixo muda, e todo QR já impresso continua funcionando. -->
+
+    <!-- Mesmas cores, fonte e espaçamentos do site; mesmo visual de /links/ -->
+    <link rel="stylesheet" href="../CSS/_global.css?v=1">
     <style>
-        @font-face{font-family:'Inter';font-weight:100 900;font-display:swap;src:url('../fonts/inter-latin.woff2') format('woff2')}
         *{box-sizing:border-box}
-        body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px 20px;background:#000;color:#fff;font-family:'Inter',system-ui,sans-serif;font-weight:300;line-height:1.5}
-        main{width:100%;max-width:440px}
-        img{display:block;width:120px;height:auto;margin-bottom:24px}
-        h1{margin:0 0 12px;font-size:36px;font-weight:400;line-height:1.1;letter-spacing:-.04em}
-        p{margin:0 0 24px;color:#bdbdbd}
-        .btn{display:flex;justify-content:center;padding:18px 24px;border-radius:24px;background:#ffd34d;color:#000;font-size:14px;font-weight:600;letter-spacing:.025em;text-transform:uppercase;text-decoration:none}
-        .btn:hover,.btn:focus-visible{background:#fff}
-        .versao{margin:12px 0 36px;font-size:14px;text-align:center;color:#9a9a9a}
-        ol{margin:0 0 36px;padding:0;list-style:none;counter-reset:passo;border-top:1px solid rgba(255,255,255,.16)}
-        li{counter-increment:passo;display:grid;grid-template-columns:32px 1fr;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.16);color:#bdbdbd}
-        li::before{content:counter(passo);color:#ffd34d;font-weight:600}
-        a.voltar{color:#ffd34d}
+        html{-webkit-text-size-adjust:100%;background:var(--color-preto)}
+        body{
+            position:relative;margin:0;min-height:100vh;overflow-x:hidden;
+            padding:calc(var(--spacing-36) + env(safe-area-inset-top)) var(--margem-pagina) var(--spacing-60);
+            background:var(--color-preto);color:var(--color-branco);
+            font-family:var(--font-principal);font-weight:var(--font-weight-light);line-height:var(--leading-body);
+        }
+        main{position:relative;z-index:1;width:100%;max-width:520px;margin:0 auto}
+        a{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
+        a:focus-visible{outline:2px solid var(--color-amarelo);outline-offset:3px}
+        h1,h2,p,ol{margin:0}
+
+        /* Brilho dourado nas bordas da tela (igual a /links/) */
+        .brilho{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+        .brilho::before,.brilho::after{content:"";position:absolute;border-radius:50%;animation:respira 9s ease-in-out infinite alternate}
+        .brilho::before{
+            top:-38vh;left:50%;width:150vw;height:62vh;translate:-50% 0;
+            background:radial-gradient(closest-side,rgba(255,211,77,.30),rgba(232,163,31,.10) 55%,transparent);
+        }
+        .brilho::after{
+            bottom:-30vh;right:-35vw;width:95vw;height:60vh;
+            background:radial-gradient(closest-side,rgba(232,163,31,.22),transparent);
+            animation-delay:-4.5s;
+        }
+        .brilho span{position:absolute;inset:0;box-shadow:inset 0 0 90px rgba(232,163,31,.10)}
+        @keyframes respira{from{opacity:.65}to{opacity:1}}
+        .fio{position:fixed;top:0;left:0;right:0;z-index:2;height:2px;background:linear-gradient(90deg,transparent,var(--color-dourado) 20%,var(--color-amarelo) 50%,var(--color-dourado) 80%,transparent);opacity:.9}
+
+        .entra{animation:entra .8s var(--mola) both}
+        main > .entra:nth-child(2){animation-delay:.08s}
+        main > .entra:nth-child(3){animation-delay:.16s}
+        main > .entra:nth-child(4){animation-delay:.24s}
+        @keyframes entra{from{opacity:0;translate:0 16px}}
+
+        /* Topo */
+        .topo{text-align:center;margin-bottom:var(--spacing-36)}
+        .logo{display:block;width:118px;height:auto;margin:0 auto var(--spacing-18);filter:drop-shadow(0 0 28px rgba(255,211,77,.35))}
+        h1{margin-bottom:var(--spacing-12);font-size:38px;font-weight:var(--font-weight-regular);line-height:1.08;letter-spacing:var(--tracking-apertado)}
+        h1 em{font-style:normal;background:linear-gradient(100deg,var(--color-amarelo),var(--color-dourado));-webkit-background-clip:text;background-clip:text;color:transparent}
+        .lead{max-width:380px;margin:0 auto;color:var(--color-prata);font-size:17px}
+
+        /* Cartão do download */
+        .download{
+            margin-bottom:var(--spacing-60);padding:var(--spacing-24);text-align:center;
+            border:1px solid rgba(255,211,77,.45);border-radius:var(--radius-3xl);
+            background:linear-gradient(180deg,var(--color-cartao-destaque),var(--color-cartao));
+            box-shadow:0 24px 70px -30px rgba(255,211,77,.45);
+        }
+        .selos{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--spacing-6);margin-bottom:var(--spacing-18)}
+        .selo{padding:4px 12px;border:1px solid var(--color-linha);border-radius:var(--radius-full);font-size:var(--text-caption);color:var(--color-prata)}
+        .btn{display:flex;justify-content:center;align-items:center;gap:var(--spacing-12);min-height:60px;padding:16px 24px;border-radius:var(--radius-3xl);font-size:var(--text-label);font-weight:var(--font-weight-semibold);letter-spacing:var(--tracking-label);text-transform:uppercase;transition:background var(--t-rapida),color var(--t-rapida),border-color var(--t-rapida),box-shadow var(--t-media)}
+        .btn svg{width:22px;height:22px}
+        .btn--primario{background:var(--color-amarelo);color:var(--color-preto);box-shadow:0 10px 36px -10px rgba(255,211,77,.6)}
+        .btn--primario:hover,.btn--primario:focus-visible{background:var(--color-branco);box-shadow:0 10px 36px -10px rgba(255,255,255,.4)}
+        .btn--contorno{min-height:56px;border:1px solid var(--color-linha);background:rgba(0,0,0,.4)}
+        .btn--contorno:hover,.btn--contorno:focus-visible{border-color:var(--color-amarelo);color:var(--color-amarelo)}
+        .versao{min-height:1.5em;margin-top:var(--spacing-12);font-size:var(--text-label);color:var(--color-cinza)}
+
+        /* Passos */
+        section{margin-bottom:var(--spacing-60)}
+        .rotulo{display:flex;align-items:center;gap:var(--spacing-12);margin-bottom:var(--spacing-18);color:var(--color-amarelo);font-size:var(--text-caption);font-weight:var(--font-weight-semibold);letter-spacing:.08em;text-transform:uppercase}
+        .rotulo::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(232,163,31,.6),transparent)}
+        .passos{padding:0;list-style:none;counter-reset:passo;display:grid;gap:var(--spacing-12)}
+        .passos li{
+            counter-increment:passo;display:grid;grid-template-columns:48px minmax(0,1fr);align-items:center;gap:var(--spacing-18);
+            min-height:76px;padding:var(--spacing-12) var(--spacing-18) var(--spacing-12) var(--spacing-12);
+            border:1px solid var(--color-linha);border-radius:var(--radius-3xl);background:var(--color-cartao);color:var(--color-prata);
+        }
+        .passos li::before{
+            content:counter(passo);display:grid;place-items:center;width:48px;height:48px;border-radius:16px;
+            border:1px solid var(--color-amarelo);background:var(--color-veu-amarelo);
+            color:var(--color-branco);font-size:20px;font-weight:var(--font-weight-regular);
+        }
+        .passos strong{display:block;color:var(--color-branco);font-weight:var(--font-weight-regular);font-size:17px}
+
+        .outras{display:grid;gap:var(--spacing-12);margin-bottom:var(--spacing-60)}
+
+        footer{text-align:center;color:var(--color-cinza);font-size:13px}
+        footer img{display:block;width:28px;height:28px;margin:0 auto var(--spacing-12);opacity:.8}
+        footer a{color:var(--color-amarelo)}
+
+        @media (min-width:760px){
+            body{padding-top:var(--spacing-96)}
+            .logo{width:140px}
+            h1{font-size:52px}
+            .download{padding:var(--spacing-36)}
+            .outras{grid-template-columns:1fr 1fr}
+            .brilho::before{width:110vw;height:70vh}
+            .brilho::after{right:-20vw;width:60vw}
+        }
+        @media (prefers-reduced-motion:reduce){
+            *,*::before,*::after{animation:none!important;transition:none!important}
+        }
     </style>
 </head>
 <body>
+    <div class="brilho" aria-hidden="true"><span></span></div>
+    <div class="fio" aria-hidden="true"></div>
+
     <main>
-        <img src="../images/logo-completa.webp" alt="VisuAll" width="480" height="440">
-        <h1>Baixe o VisuAll</h1>
-        <p>Para celulares Android 8 ou mais recentes. O link entrega sempre a versão mais nova do app.</p>
+        <header class="topo entra">
+            <img class="logo" src="../images/logo-completa.webp" alt="VisuAll" width="480" height="440">
+            <h1>Baixe o <em>VisuAll</em></h1>
+            <p class="lead">Libras em tempo real na câmera do seu smartphone, 100% local e sem internet.</p>
+        </header>
 
-        <a class="btn" href="https://github.com/VisuAll2K26/VisuAll2K26.github.io/releases/download/app/VisuAll.apk">Baixar para Android</a>
-        <p class="versao" data-versao-apk>&nbsp;</p>
+        <div class="download entra">
+            <div class="selos">
+                <span class="selo">Android 8 ou mais recente</span>
+                <span class="selo">Sempre a versão mais nova</span>
+            </div>
+            <a class="btn btn--primario" href="https://github.com/VisuAll2K26/VisuAll2K26.github.io/releases/download/app/VisuAll.apk">
+                <!-- Ícone do Android (Simple Icons, CC0) -->
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4483-.9993.9993-.9993c.5511 0 .9993.4483.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4483.9993.9993 0 .5511-.4483.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.2439 13.8533 7.8508 12 7.8508s-3.5902.3931-5.1367 1.0989L4.841 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3435-4.1021-2.6892-7.5743-6.1185-9.4396"/></svg>
+                Baixar para Android
+            </a>
+            <p class="versao" data-versao-apk>&nbsp;</p>
+        </div>
 
-        <ol>
-            <li>Toque em baixar e abra o arquivo quando terminar.</li>
-            <li>Se o celular pedir, permita instalar apps desta fonte.</li>
-            <li>Já tem o VisuAll? Instale por cima: o histórico continua.</li>
-        </ol>
+        <section class="entra" aria-labelledby="t-passos">
+            <h2 class="rotulo" id="t-passos">Como instalar</h2>
+            <ol class="passos">
+                <li><span><strong>Baixe o arquivo</strong>Toque em baixar e abra o arquivo quando terminar.</span></li>
+                <li><span><strong>Permita a instalação</strong>Se o celular pedir, permita instalar apps desta fonte.</span></li>
+                <li><span><strong>Já tem o VisuAll?</strong>Instale por cima: o histórico continua.</span></li>
+            </ol>
+        </section>
 
-        <p><a class="voltar" href="../html/index.html">Conhecer o projeto</a></p>
+        <div class="outras entra">
+            <a class="btn btn--contorno" href="../html/index.html">Conhecer o projeto</a>
+            <a class="btn btn--contorno" href="../links/">Equipe e redes</a>
+        </div>
+
+        <footer>
+            <img src="../images/favicon-64.png" alt="" width="28" height="28">
+            <p>Engenharia de Software · FIAP · 2026<br><a href="../html/index.html">visuall2k26.github.io</a></p>
+        </footer>
     </main>
     <script src="../js/versao-apk.js" defer></script>
 </body>
