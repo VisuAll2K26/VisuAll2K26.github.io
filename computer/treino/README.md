@@ -30,7 +30,7 @@ A janela da câmera mostra **o que gravar** em cima (a letra ou a palavra) e
 
 | Tecla | O que faz |
 |---|---|
-| **ESPAÇO** | grava: 3 segundos para se posicionar, depois **3 segundos gravando** |
+| **ESPAÇO** | grava: 3 segundos para se posicionar, depois **3 segundos gravando** (letra parada: 18 fotos nesses 3 segundos) |
 | **R** | **regrava**: apaga a última gravação desta letra/palavra e grava de novo |
 | **X** | **apaga** a última gravação desta letra/palavra (de novo: apaga a anterior) |
 | **N** / **→** | próxima letra/palavra |
@@ -38,6 +38,14 @@ A janela da câmera mostra **o que gravar** em cima (a letra ou a palavra) e
 | **TAB** | **palavra nova**: abre o campo para digitar o nome (só nas palavras) |
 | **ESC** | durante a contagem/gravação, cancela aquela gravação |
 | **Q** | fecha a câmera |
+
+**Foto ou vídeo?** O gravador escolhe sozinho:
+
+| O que está gravando | Salva | Por quê |
+|---|---|---|
+| **Letra parada** (A, B, C, D...) | **18 fotos** nos 3 segundos | o treino dela é foto a foto. Enquanto tira as fotos, **mude um pouco o ângulo e a distância da mão** (sem desfazer a letra): cada foto ensina uma variação. As 18 contam como **uma** gravação. |
+| **Letra com movimento** (H J K X Z) e **NADA** | vídeo de 3 s | o treino precisa do movimento |
+| **Palavra** | vídeo de 3 s | idem |
 
 Cada gravação vai sozinha para a pasta certa, com o nome da letra/palavra:
 `gravacoes\letras\H\`, `gravacoes\palavras\OBRIGADO\`... Não precisa criar

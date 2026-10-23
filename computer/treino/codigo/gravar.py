@@ -3,8 +3,14 @@ Gravador do VisuAll: abre a webcam, voce aperta ESPACO e ele grava 3 segundos.
 
 Cada gravacao vai sozinha pra pasta certa, que e onde o treino procura:
 
-    computer/treino/gravacoes/letras/<LETRA>/AAAAMMDD_HHMMSS.mp4
-    computer/treino/gravacoes/palavras/<PALAVRA>/AAAAMMDD_HHMMSS.mp4
+    letra parada:        gravacoes/letras/<LETRA>/AAAAMMDD_HHMMSS_NN.jpg (18 fotos)
+    letra com movimento: gravacoes/letras/<LETRA>/AAAAMMDD_HHMMSS.mp4
+    NADA:                gravacoes/letras/NADA/AAAAMMDD_HHMMSS.mp4
+    palavra:             gravacoes/palavras/<PALAVRA>/AAAAMMDD_HHMMSS.mp4
+
+Letra parada vira FOTOS porque o treino dela e foto a foto: nos 3 segundos,
+mexa um pouco o angulo e a distancia da mao (sem desfazer a letra) e cada
+foto ensina uma variacao. As 18 fotos de um ESPACO contam como UMA gravacao.
 
 Tres jeitos de abrir (cada .bat abre um):
 
@@ -13,7 +19,7 @@ Tres jeitos de abrir (cada .bat abre um):
     python gravar.py letras         percorre o alfabeto (e o NADA)
 
 Teclas:
-    ESPACO        grava (3 s pra se posicionar, depois 3 s gravando)
+    ESPACO        grava (3 s pra se posicionar, depois 3 s gravando/fotografando)
     R             regrava: apaga a ultima gravacao desta letra/palavra e grava de novo
     X ou DELETE   apaga a ultima gravacao desta letra/palavra (de novo: a anterior)
     N ou ->       proxima letra/palavra
@@ -36,6 +42,7 @@ import pontos  # noqa: E402
 
 CONTAGEM_S = 3.0
 GRAVACAO_S = 3.0
+FOTOS_POR_GRAVACAO = 18   # o mesmo tanto da rajada do gravador antigo
 NOME_MAXIMO = 24
 
 DIGITANDO, PARADO, CONTAGEM, GRAVANDO = "digitando", "parado", "contagem", "gravando"
@@ -63,7 +70,7 @@ def dica(tipo, rotulo, dinamicas):
         return "NADA: mexa a mao SEM fazer letra (troque de letra, coce a cabeca...)"
     if rotulo in dinamicas:
         return "LETRA COM MOVIMENTO: faca o movimento inteiro"
-    return "LETRA PARADA: segure a mao parada na letra"
+    return "LETRA PARADA: segure a letra e va mudando um pouco o angulo da mao"
 
 
 def conta(tipo, rotulo):
@@ -88,9 +95,20 @@ def salva_video(quadros, pasta, duracao):
     return destino
 
 
-def apaga(tipo, rotulo, video):
-    """Apaga o video e, se o treino ja o leu, os pontos dele."""
-    for caminho in (video, pontos.caminho_pontos(tipo, rotulo, pontos.id_da_gravacao(video))):
+def salva_fotos(quadros, pasta):
+    """AAAAMMDD_HHMMSS_NN.jpg: o banco junta a rajada numa gravacao so."""
+    pasta.mkdir(parents=True, exist_ok=True)
+    inicio = datetime.now().strftime("%Y%m%d_%H%M%S")
+    fotos = [pasta / ("%s_%02d.jpg" % (inicio, i)) for i in range(len(quadros))]
+    for destino, quadro in zip(fotos, quadros):
+        cv2.imwrite(str(destino), quadro, [cv2.IMWRITE_JPEG_QUALITY, 95])
+    return fotos
+
+
+def apaga(tipo, rotulo, arquivos):
+    """Apaga os arquivos de uma gravacao e, se o treino ja a leu, os pontos dela."""
+    ident = pontos.id_da_gravacao(arquivos[0])
+    for caminho in list(arquivos) + [pontos.caminho_pontos(tipo, rotulo, ident)]:
         try:
             caminho.unlink()
         except OSError:
@@ -133,7 +151,7 @@ class Gravador:
         self.buffer = []
         self.aviso = ("Digite o nome da palavra nova e tecle ENTER"
                       if self.estado == DIGITANDO else "")
-        self.feitas = {}     # rotulo -> videos gravados nesta sessao, em ordem
+        self.feitas = {}     # rotulo -> [arquivos de cada gravacao desta sessao], em ordem
         self.regravar = False
         self.dinamicas = set(comum.letras_dinamicas())
         self._contagem = {}  # contar arquivos a cada quadro pesa num pendrive
@@ -149,6 +167,10 @@ class Gravador:
 
     def pasta(self):
         return comum.GRAVACOES / self.tipo / self.rotulo
+
+    def em_fotos(self):
+        """Letra parada grava fotos; letra com movimento, NADA e palavra, video."""
+        return self.tipo == "letras" and self.rotulo != comum.NADA             and self.rotulo not in self.dinamicas
 
     # ── teclas ─────────────────────────────────────────────────────────
     def tecla(self, codigo, agora):
@@ -221,11 +243,12 @@ class Gravador:
         pilha = self.feitas.get(self.rotulo, [])
         if not pilha:
             return False
-        video = pilha.pop()
-        apaga(self.tipo, self.rotulo, video)
+        arquivos = pilha.pop()
+        apaga(self.tipo, self.rotulo, arquivos)
         self._contagem.pop(self.rotulo, None)
-        self.aviso = "APAGADA: %s" % video.name
-        print("  [%s] apagada %s" % (self.rotulo, video.name))
+        nome = pontos.id_da_gravacao(arquivos[0])
+        self.aviso = "APAGADA: %s" % nome
+        print("  [%s] apagada %s" % (self.rotulo, nome))
         return True
 
     # ── tempo ──────────────────────────────────────────────────────────
@@ -233,20 +256,31 @@ class Gravador:
         if self.estado == CONTAGEM and agora - self.marca >= CONTAGEM_S:
             self.estado, self.marca, self.buffer = GRAVANDO, agora, []
         elif self.estado == GRAVANDO:
-            self.buffer.append(imagem.copy())
-            if agora - self.marca >= GRAVACAO_S:
-                video = salva_video(self.buffer, self.pasta(), GRAVACAO_S)
-                self.feitas.setdefault(self.rotulo, []).append(video)
+            fotos = self.em_fotos()
+            decorrido = agora - self.marca
+            # Foto: uma a cada GRAVACAO_S / FOTOS_POR_GRAVACAO, espalhadas nos 3 s.
+            if not fotos or (len(self.buffer) < FOTOS_POR_GRAVACAO and
+                             decorrido >= len(self.buffer) * GRAVACAO_S / FOTOS_POR_GRAVACAO):
+                self.buffer.append(imagem.copy())
+            if decorrido >= GRAVACAO_S:
+                if fotos:
+                    arquivos = salva_fotos(self.buffer, self.pasta())
+                    unidade, minimo = "fotos", FOTOS_POR_GRAVACAO // 2
+                else:
+                    arquivos = [salva_video(self.buffer, self.pasta(), GRAVACAO_S)]
+                    unidade, minimo = "quadros", 30
+                self.feitas.setdefault(self.rotulo, []).append(arquivos)
                 self._contagem.pop(self.rotulo, None)
-                self.aviso = "%s: %s salva (%d quadros)%s" % (
+                self.aviso = "%s: %s salva (%d %s)%s" % (
                     self.rotulo, "regravada" if self.regravar else "gravacao", len(self.buffer),
-                    "" if len(self.buffer) >= 30 else " -- POUCOS QUADROS, camera lenta?")
-                print("  [%s] %s" % (self.rotulo, video.name))
+                    unidade, "" if len(self.buffer) >= minimo else " -- POUCOS, camera lenta?")
+                print("  [%s] %s (%d %s)" % (self.rotulo, pontos.id_da_gravacao(arquivos[0]),
+                                             len(self.buffer), unidade))
                 self.estado, self.buffer, self.regravar = PARADO, [], False
 
     # ── tela ───────────────────────────────────────────────────────────
     def desenha(self, imagem, agora):
-        vista = cv2.flip(imagem, 1)   # espelho so na tela; o video salvo e o cru
+        vista = cv2.flip(imagem, 1)   # espelho so na tela; o que e salvo e o quadro cru
         h, w = vista.shape[:2]
         cv2.rectangle(vista, (0, 0), (w, 112), FUNDO, -1)
         cv2.rectangle(vista, (0, h - 76), (w, h), FUNDO, -1)
@@ -268,7 +302,11 @@ class Gravador:
         elif self.estado == GRAVANDO:
             decorrido = agora - self.marca
             cv2.circle(vista, (w - 40, 150), 14, VERMELHO, -1)
-            texto(vista, "GRAVANDO %.1fs" % decorrido, (w - 250, 158), 0.7, VERMELHO, 2)
+            if self.em_fotos():
+                texto(vista, "FOTOS %d/%d" % (len(self.buffer), FOTOS_POR_GRAVACAO),
+                      (w - 250, 158), 0.7, VERMELHO, 2)
+            else:
+                texto(vista, "GRAVANDO %.1fs" % decorrido, (w - 250, 158), 0.7, VERMELHO, 2)
             cv2.rectangle(vista, (0, h - 81), (int(w * decorrido / GRAVACAO_S), h - 76),
                           VERMELHO, -1)
 

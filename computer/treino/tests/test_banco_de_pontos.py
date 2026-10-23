@@ -190,6 +190,29 @@ class TestGravador(PastasTemporarias):
         g.tecla(ord("x"), 0.0)
         self.assertFalse(videos[0].exists())
 
+    def test_letra_parada_vira_fotos_de_uma_gravacao(self):
+        g = self.gravar.Gravador("letras")
+        g.idx = g.itens.index("A")
+        quadro = np.zeros((48, 64, 3), np.uint8)
+        g.tecla(self.gravar.ESPACO, 0.0)
+        inicio = self.gravar.CONTAGEM_S
+        g.quadro(quadro, inicio)                                     # comeca a fotografar
+        for i in range(1, 91):                                       # 30 quadros/s por 3 s
+            g.quadro(quadro, inicio + i / 30)
+        pasta = comum.GRAVACOES / "letras" / "A"
+        fotos = list(pasta.glob("*.jpg"))
+        self.assertEqual(len(fotos), self.gravar.FOTOS_POR_GRAVACAO)
+        self.assertEqual(list(pasta.glob("*.mp4")), [])
+        self.assertEqual(len({pontos.id_da_gravacao(f) for f in fotos}), 1)
+        g.tecla(ord("x"), 0.0)
+        self.assertEqual(list(pasta.iterdir()), [])
+
+    def test_letra_com_movimento_e_nada_continuam_video(self):
+        g = self.gravar.Gravador("letras")
+        for rotulo in [comum.NADA] + sorted(g.dinamicas)[:1]:
+            g.idx = g.itens.index(rotulo)
+            self.assertFalse(g.em_fotos(), rotulo)
+
 
 class TestNaoEsquece(PastasTemporarias):
 
