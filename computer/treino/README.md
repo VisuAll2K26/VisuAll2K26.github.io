@@ -2,6 +2,13 @@
 
 Tudo aqui é **duplo-clique**. Nenhum comando digitado.
 
+> **Retreino final (C, D, V, H, K, PESSOA, SURDO):** o passo a passo, com
+> quanto gravar de cada letra e o que conferir antes de instalar, está em
+> [RETREINO_FINAL.md](RETREINO_FINAL.md).
+>
+> Os `.bat` usam o Python de `computer\.venv` quando ele existe — é como
+> treinar num PC cujo `python` é o 3.13 (veja o passo 0 do RETREINO_FINAL).
+
 ---
 
 ## O ciclo, sempre igual

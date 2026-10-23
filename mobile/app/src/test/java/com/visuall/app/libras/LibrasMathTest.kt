@@ -129,4 +129,33 @@ class LibrasMathTest {
         // média 2, variância populacional (1+0+1)/3 = 0.6667, raiz ~0.8165
         assertEquals(0.8165f, LibrasMath.std(listOf(1f, 2f, 3f)), 1e-3f)
     }
+
+    @Test
+    fun `quadrosNaJanela conta os quadros dos ultimos milissegundos`() {
+        // 15 quadros/s: um a cada ~67ms. 330ms pegam os 5 mais novos -- o
+        // mesmo que os 5 quadros fixos de antes, nessa taxa.
+        val tempos = (0 until 15).map { it * 67L }
+        assertEquals(5, LibrasMath.quadrosNaJanela(tempos, 330L, 3))
+    }
+
+    @Test
+    fun `quadrosNaJanela pega mais quadros em aparelho rapido`() {
+        // 30 quadros/s: 330ms sao 11 quadros, nao 5. Com 5 a mao mal saia do
+        // lugar e o movimento real ficava abaixo do limiar.
+        val tempos = (0 until 15).map { it * 33L }
+        assertEquals(11, LibrasMath.quadrosNaJanela(tempos, 330L, 3))
+    }
+
+    @Test
+    fun `quadrosNaJanela garante o minimo em aparelho lento`() {
+        // 5 quadros/s: so um quadro cabe em 330ms, e desvio de um quadro so e 0.
+        val tempos = (0 until 6).map { it * 200L }
+        assertEquals(3, LibrasMath.quadrosNaJanela(tempos, 330L, 3))
+    }
+
+    @Test
+    fun `quadrosNaJanela devolve zero sem quadros suficientes`() {
+        assertEquals(0, LibrasMath.quadrosNaJanela(listOf(0L, 50L), 330L, 3))
+        assertEquals(0, LibrasMath.quadrosNaJanela(emptyList(), 330L, 3))
+    }
 }

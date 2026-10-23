@@ -9,6 +9,7 @@ copia nao ha como voltar atras.
 
 Cada treino guarda em computer/treino/modelos_anteriores/<nome>_<data>_<hora>/.
 """
+import os
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -34,8 +35,10 @@ def faz_backup(arquivos, nome):
 
     destino = PASTA_BACKUP / ("%s_%s" % (nome, datetime.now().strftime("%Y%m%d_%H%M%S")))
     destino.mkdir(parents=True, exist_ok=True)
-    for arquivo in existentes:
-        shutil.copy2(str(arquivo), str(destino / arquivo.name))
+    for arquivo, relativo in zip(arquivos, _relativos(arquivos)):
+        if arquivo.exists():
+            (destino / relativo).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(str(arquivo), str(destino / relativo))
 
     # Guarda de onde cada arquivo veio, pra restauracao nao depender de
     # adivinhar o caminho.
@@ -45,6 +48,18 @@ def faz_backup(arquivos, nome):
 
     _limpa_antigos(nome)
     return destino
+
+
+def _relativos(arquivos):
+    """Onde cada arquivo fica dentro do backup: relativo a pasta comum a todos.
+
+    Arquivos de uma pasta so (o modelo de corpo) ficam so com o nome, como
+    sempre foi. Os modelos por letra se chamam todos model.onnx
+    (H/model.onnx, K/model.onnx...): guardados so pelo nome, um sobrescrevia o
+    outro.
+    """
+    base = Path(os.path.commonpath([str(Path(a).parent) for a in arquivos]))
+    return [Path(a).relative_to(base) for a in arquivos]
 
 
 def _limpa_antigos(nome):
@@ -75,8 +90,8 @@ def restaura(pasta):
                 for linha in origem_txt.read_text(encoding="utf-8").splitlines()
                 if linha.strip()]
     restaurados = []
-    for destino in destinos:
-        guardado = pasta / destino.name
+    for destino, relativo in zip(destinos, _relativos(destinos)):
+        guardado = pasta / relativo
         if guardado.exists():
             destino.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(str(guardado), str(destino))

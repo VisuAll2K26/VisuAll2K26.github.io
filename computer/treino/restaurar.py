@@ -38,7 +38,8 @@ def main():
         data, hora = (partes[1], partes[2]) if len(partes) == 3 else ("?", "?")
         quando = "%s/%s/%s as %s:%s" % (data[6:8], data[4:6], data[0:4],
                                         hora[0:2], hora[2:4]) if data != "?" else "?"
-        arquivos = [a.name for a in pasta.iterdir() if a.name != "origem.txt"]
+        arquivos = [a.relative_to(pasta).as_posix() for a in pasta.rglob("*")
+                    if a.is_file() and a.name != "origem.txt"]
         print("   %d) %-18s  %s" % (i, ROTULOS.get(tipo, tipo), quando))
         print("      %s" % ", ".join(sorted(arquivos)))
     print()

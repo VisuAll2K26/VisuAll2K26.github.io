@@ -13,6 +13,69 @@ Formato: **Constante(s)** — valor atual — decisão e por quê — status.
 
 ## Não lançado
 
+- **Classe `NADA` no modelo das letras com movimento** (treino) e
+  **`LIMIAR_MOVIMENTO_COM_NADA=0.20`, `CONSENSO_DINAMICO_JANELAS_COM_NADA=2`,
+  `CONSENSO_DINAMICO_MS_COM_NADA=130`** (novos) — relato: "as letras com
+  movimento saem com muita facilidade; mesmo em letra parada, quando vamos
+  comecar o sinal ou fazer outra, sai uma dinamica", "H sai facil", "K nao
+  sai, e confundido por H". Medido com o novo
+  `computer/treino/diagnostico/simula_dinamicas.py` (o caminho do app quadro a
+  quadro, 15 quadros/s, modelos de hoje, sem o consenso): 96 de 300 trocas
+  entre duas letras paradas viravam letra com movimento (76 delas H) e mao se
+  mexendo a toa (maos dos videos de gesto de corpo) dava 17 letras por minuto.
+  Duas causas, nenhuma de limiar. (1) O modelo dinamico nao tem como responder
+  "nao e letra": so conhece H J K X Z. (2) O reforco individual do H responde
+  >=0.97 em 64% das janelas de K, 76% das de J e 80% das de X dos videos deste
+  repo, e o do K nunca passa de 0.906 numa janela de K (dispara no Z). O
+  `exportar_onnx.py` agora treina o geral com uma classe `NADA` (clipes de
+  'nada', maos dos videos de corpo e trocas sinteticas entre letras paradas),
+  com espelho e janelas em 3 taxas de quadros; o `LetraEngine` trata `NADA`
+  como "nao sei", nao deixa reforco nenhum passar por cima dela nem tenta o
+  espelho depois dela. Com isso os portoes podem afrouxar, e o
+  `AjusteDinamico` escolhe sozinho pelo `labels.txt`: com `NADA`, limiar 0.20 e
+  consenso 2 janelas/130ms; sem, 0.30 e 3/200 como antes. Validacao separada
+  por video (4 partes; nenhum video testado estava no treino): modelos de
+  hoje 28 de 95 letras, 16 com letra errada, 5.1 falsas/min; retreinado com
+  `NADA` e os portoes antigos 47 de 95 e 0.05/min; com os portoes novos 83 de
+  95, 2 com letra errada, 0.16/min e 0 de 300 trocas virando letra. Sem
+  espelho no treino, com a mao espelhada (camera frontal) caia de 48 pra 20.
+  Status: **implementado; o modelo em si ainda nao foi retreinado** — o app
+  instalado hoje continua com o modelo antigo e os portoes antigos ate o
+  `Treinar.bat --tipo dinamico --limpar-individuais`
+  (`computer/treino/RETREINO_FINAL.md`). Pendente de validacao no aparelho:
+  nenhum video mede mao PARADA segurando letra estatica a 15 quadros/s; se
+  letra parada passar a falhar com o modelo novo, subir
+  `LIMIAR_MOVIMENTO_COM_NADA` primeiro.
+
+- **`MOVIMENTO_JANELA_MS=330`, `MOVIMENTO_QUADROS_MINIMOS=3`** (novos) — o
+  movimento que abre o portao dinamico era o desvio dos pontos nos ultimos 5
+  quadros, o que fazia a medida depender da velocidade do celular: no
+  simulador, com o modelo de hoje, a 30 quadros/s so 5 de 95 letras passavam,
+  e a 10 quadros/s a mao que mal se ajeitava ja contava como gesto. Agora e o
+  desvio nos quadros dos ultimos 330ms — o que os 5 quadros cobriam a ~15
+  quadros/s, entao nessa taxa nada muda. Com o modelo `NADA` e os portoes
+  novos: 83/95 a 15 quadros/s, 76 a 10 e 84 a 30 (com 5 quadros: 83, 83 e 40).
+  Status: **implementado, aguardando validacao no aparelho**; o `fps=` do log
+  `LibrasAnalyzer` (logcat) diz em que taxa o celular de voces roda.
+
+- **`CONSENSO_DINAMICO_JANELAS=3`, `CONSENSO_DINAMICO_MS=200`** (novos) —
+  relato: letras com movimento saiam facil demais. Parte da causa: no
+  `ENCERRANDO` o `LetraEngine` reclassificava a ultima janela do gesto, sempre
+  a mesma, por 400ms. Uma unica janela que passasse de `CONFIANCA_DINAMICA`
+  (qualquer mao se mexendo, ja que o modelo dinamico nao tem classe "nenhuma")
+  se repetia identica e passava pela estabilidade do `LetterCommitGate` por
+  construcao. Agora a letra so vale se 3 janelas seguidas, cobrindo 200ms,
+  concordarem (`DynamicLetterConsensus`); o `ENCERRANDO` mantem a letra que o
+  gesto ja confirmou em vez de reclassificar. Medido com
+  `simula_dinamicas.py` a 15 quadros/s e os modelos de hoje: trocas entre
+  letras paradas virando letra de 96/300 para 3/300; mao a toa de 17 para 7.8
+  letras/min; letras reais de 40/95 para 28/95 (o que sobrava eram quase so J
+  e Z: com os reforcos de hoje K e X nao saem nunca). A afirmacao anterior
+  desta entrada, de que H, J e Z reais "concordam por 8+ janelas", olhava o
+  modelo sem a politica de reforcos; com ela o H nao chega a 1 de 15. Vale
+  quando o modelo nao tem `NADA` (ver `AjusteDinamico`). Status:
+  **implementado, aguardando validacao no aparelho**.
+
 - **Interrogacao tambem no Alfabeto** — o `FaceMarkerEngine` agora roda a cada
   cinco frames nos dois modos. O evento e o `?` atendem Corpo e Alfabeto; pontos
   vermelhos e painel tecnico continuam exclusivos do Corpo para nao poluir a

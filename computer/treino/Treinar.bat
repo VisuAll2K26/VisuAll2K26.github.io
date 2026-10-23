@@ -23,7 +23,13 @@ REM ============================================================
 cd /d "%~dp0.."
 set "RAIZ=%CD%"
 
-python --version >nul 2>&1
+REM Prefere o Python do ambiente do projeto (computer\.venv, Python 3.11):
+REM o "python" do PATH pode ser uma versao que o treino nao aceita (3.13+).
+REM Como criar o ambiente: computer\treino\RETREINO_FINAL.md, passo 0.
+set "PY=python"
+if exist "%CD%\.venv\Scripts\python.exe" set "PY=%CD%\.venv\Scripts\python.exe"
+
+"%PY%" --version >nul 2>&1
 if errorlevel 1 (
     echo.
     echo ERRO: Python nao encontrado no PATH.
@@ -32,16 +38,16 @@ if errorlevel 1 (
     exit /b 1
 )
 
-python treino\checar_python.py
+"%PY%" treino\checar_python.py
 if errorlevel 1 (
     pause
     exit /b 1
 )
 
-python -c "import cv2, mediapipe, numpy, sklearn, skl2onnx, onnxruntime" >nul 2>&1
+"%PY%" -c "import cv2, mediapipe, numpy, sklearn, skl2onnx, onnxruntime" >nul 2>&1
 if errorlevel 1 (
     echo Instalando dependencias, aguarde alguns minutos...
-    python -m pip install -r requirements.txt
+    "%PY%" -m pip install -r requirements.txt
     if errorlevel 1 (
         echo.
         echo ERRO ao instalar as dependencias.
@@ -54,6 +60,8 @@ REM Os .npz sao sempre refeitos a partir das fotos/videos, que sao a fonte
 REM da verdade -- assim um dataset velho nunca e treinado por engano.
 if exist "%RAIZ%\data\dataset_static.npz"  del /q "%RAIZ%\data\dataset_static.npz"
 if exist "%RAIZ%\data\dataset_dynamic.npz" del /q "%RAIZ%\data\dataset_dynamic.npz"
+if exist "%RAIZ%\data\dataset_negativos_static.npz"  del /q "%RAIZ%\data\dataset_negativos_static.npz"
+if exist "%RAIZ%\data\dataset_negativos_dynamic.npz" del /q "%RAIZ%\data\dataset_negativos_dynamic.npz"
 
 REM ---------- 1. fotos (letras paradas) ----------
 echo.
@@ -61,7 +69,7 @@ echo ============================================================
 echo  [1/3] LETRAS PARADAS - lendo as fotos
 echo ============================================================
 if exist "%RAIZ%\data\raw_images" (
-    python "%RAIZ%\linear\backend\data_extraction\extract_from_images.py"
+    "%PY%" "%RAIZ%\linear\backend\data_extraction\extract_from_images.py"
 ) else (
     echo Pulando: voce ainda nao gravou nenhuma letra parada.
 )
@@ -72,18 +80,23 @@ echo ============================================================
 echo  [2/3] LETRAS COM MOVIMENTO - lendo os videos
 echo ============================================================
 if exist "%RAIZ%\data\raw_videos" (
-    python "%RAIZ%\linear\backend\data_extraction\extract_from_videos.py"
+    "%PY%" "%RAIZ%\linear\backend\data_extraction\extract_from_videos.py"
 ) else (
     echo Pulando: voce ainda nao gravou nenhuma letra com movimento.
 )
 
 REM ---------- 2b. exemplos de "Nada" (opcional, mas ajuda muito) ----------
-if exist "%RAIZ%\data\raw_negativos" (
+REM Roda tambem so com os videos de corpo: as maos deles viram exemplos de
+REM "nao e letra" pro modelo das letras com movimento.
+set "TEM_NEGATIVO="
+if exist "%RAIZ%\data\raw_negativos"   set "TEM_NEGATIVO=1"
+if exist "%RAIZ%\data\raw_body_videos" set "TEM_NEGATIVO=1"
+if defined TEM_NEGATIVO (
     echo.
     echo ============================================================
     echo  [2b] EXEMPLOS DE "NADA" - mao a mostra sem fazer letra
     echo ============================================================
-    python "%RAIZ%\treino\extrair_negativos.py"
+    "%PY%" "%RAIZ%\treino\extrair_negativos.py"
 )
 
 REM ---------- 3. treina e exporta o que existir ----------
@@ -106,7 +119,7 @@ echo.
 echo ============================================================
 echo  [3/3] TREINANDO e gerando os modelos do app
 echo ============================================================
-python "%RAIZ%\treino\exportar_onnx.py" %*
+"%PY%" "%RAIZ%\treino\exportar_onnx.py" %*
 if errorlevel 1 (
     echo.
     echo A exportacao terminou com problema. Veja a mensagem acima.

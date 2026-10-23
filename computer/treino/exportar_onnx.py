@@ -5,8 +5,13 @@ Este e o passo que fecha o ciclo: videos/fotos no PC -> .onnx -> app do
 celular. Nao passa por .pkl e nao tem nada a ver com o backend Python.
 
 Entrada (gerada pelos extractors deste repo):
-    data/dataset_static.npz    X [N, 42]   y [N]
-    data/dataset_dynamic.npz   X [N, 420]  y [N]
+    data/dataset_static.npz    X [N, 42]   y [N]  grupo [N]
+    data/dataset_dynamic.npz   X [N, 420]  y [N]  grupo [N]
+    data/dataset_negativos_*.npz  (opcional) exemplos de "nao e letra"
+
+`grupo` diz de que video/gravacao saiu cada amostra. Com ele a nota impressa
+no fim e honesta: o teste so tem videos que o treino nunca viu. Sem ele (npz
+antigo), a nota mistura janelas quase iguais do mesmo video nos dois lados.
 
 Saida (direto na pasta de assets do app):
     mobile/app/src/main/assets/letras_estaticas/geral/model.onnx
@@ -29,10 +34,20 @@ A normalizacao dos landmarks ja bate: normalize_landmarks() do Python e
 LibrasMath.normalizeLandmarks() do Kotlin fazem a mesma conta (translada pelo
 ponto 0, divide pelo maior valor absoluto).
 
+Duas coisas entram no treino sem voce gravar nada a mais:
+  - ESPELHO: cada amostra entra tambem espelhada (a mesma letra com a outra
+    mao). Os videos sao de uma mao so, e o app espelha a camera frontal.
+  - NADA (so nas letras com movimento): uma classe a mais, feita dos clipes
+    de "nada", das maos dos videos de gesto de corpo e de trocas sinteticas
+    entre letras paradas. Sem ela o modelo nao tinha como responder "nao e
+    letra" e qualquer mao se mexendo virava H, J, K, X ou Z. O app nunca
+    mostra esse rotulo (LetterDecision.normalizarSaida).
+
 Uso:
     python treino/exportar_onnx.py                  # os dois modelos
     python treino/exportar_onnx.py --tipo estatico  # so um
     python treino/exportar_onnx.py --limpar-individuais
+    python treino/exportar_onnx.py --sem-espelho --sem-nada   # como era antes
 """
 import argparse
 import shutil
@@ -50,6 +65,9 @@ DATA = RAIZ / "data"
 ASSETS = REPO / "mobile" / "app" / "src" / "main" / "assets"
 
 NOME_ENTRADA = "landmarks_input"
+# Rotulo da classe "isto nao e letra" do modelo dinamico. O app trata como
+# "nao sei" (LetterDecision.normalizarSaida) e nunca mostra na tela.
+NADA = "NADA"
 
 # Serve pra saber a que categoria pertence cada letra pedida em --reforcar.
 LETRAS_DO_TIPO = {
@@ -58,9 +76,12 @@ LETRAS_DO_TIPO = {
 }
 
 # (dataset, features, pasta de assets, maximo de amostras por classe)
+# O dinamico era 400. Cada video agora rende janelas em tres taxas de quadros
+# (extract_from_videos.py: PASSOS), e com 400 a maior parte delas era sorteada
+# fora antes de o treino comecar.
 CONFIG = {
     "estatico": (DATA / "dataset_static.npz", 42, ASSETS / "letras_estaticas", 500),
-    "dinamico": (DATA / "dataset_dynamic.npz", 420, ASSETS / "letras_dinamicas", 400),
+    "dinamico": (DATA / "dataset_dynamic.npz", 420, ASSETS / "letras_dinamicas", 1500),
 }
 
 
@@ -73,7 +94,7 @@ def exige(modulo, pacote=None):
         raise SystemExit(1)
 
 
-def balanceia(X, y, maximo):
+def balanceia(X, y, maximo, grupos=None):
     """Limita cada classe a `maximo` amostras -- mesma logica dos scripts de treino."""
     indices = []
     for classe in np.unique(y):
@@ -82,13 +103,63 @@ def balanceia(X, y, maximo):
             idx = np.random.RandomState(42).choice(idx, maximo, replace=False)
         indices.extend(idx)
     indices = np.array(indices)
-    return X[indices], y[indices]
+    return X[indices], y[indices], (grupos[indices] if grupos is not None else None)
 
 
-def treina(X, y):
+def espelha(X):
+    """A mesma amostra feita com a outra mao: nega os x, como
+    LibrasMath.mirrorLandmarks. Na janela de 420 as posicoes pares continuam
+    sendo os x de cada quadro, entao a conta e a mesma."""
+    X = np.array(X, dtype=np.float32, copy=True)
+    X[:, 0::2] *= -1
+    return X
+
+
+def com_espelho(X, y, grupos):
+    """Acrescenta a copia espelhada. A copia fica no MESMO grupo da original:
+    senao a avaliacao testaria um video cujo espelho estava no treino."""
+    X2 = np.vstack([X, espelha(X)])
+    y2 = np.concatenate([y, y])
+    g2 = np.concatenate([grupos, grupos]) if grupos is not None else None
+    return X2, y2, g2
+
+
+def separa_teste(y_enc, grupos):
+    """Indices de treino e teste. Por grupo (video/gravacao) quando da: as
+    janelas de um mesmo video sao quase iguais, e com elas dos dois lados a
+    nota sai inflada -- o modelo e testado no que ja viu."""
+    from sklearn.model_selection import GroupShuffleSplit, train_test_split
+
+    indices = np.arange(len(y_enc))
+    if grupos is not None and len(set(grupos)) >= 10:
+        # Varias tentativas: com poucos videos por letra, um sorteio pode
+        # deixar uma letra inteira de fora do teste.
+        for semente in range(42, 92):
+            tr, te = next(GroupShuffleSplit(n_splits=1, test_size=0.2,
+                                            random_state=semente).split(indices, y_enc, grupos))
+            if set(y_enc[te]) == set(y_enc):
+                return tr, te, True
+    minimo = int(np.bincount(y_enc).min())
+    tr, te = train_test_split(indices, test_size=0.2, random_state=42,
+                              stratify=y_enc if minimo >= 5 else None)
+    return tr, te, False
+
+
+def novo_mlp(minimo):
     from sklearn.neural_network import MLPClassifier
+
+    return MLPClassifier(
+        hidden_layer_sizes=(256, 128),
+        activation="relu",
+        max_iter=500,
+        random_state=42,
+        early_stopping=minimo >= 10,   # precisa de amostra pra separar validacao
+        validation_fraction=0.1,
+    )
+
+
+def treina(X, y, grupos=None):
     from sklearn.preprocessing import LabelEncoder
-    from sklearn.model_selection import train_test_split
     from sklearn.metrics import classification_report
 
     le = LabelEncoder()
@@ -105,31 +176,31 @@ def treina(X, y):
         print("  menos 2 letras pra ter o que distinguir. Grave outra letra.")
         raise SystemExit(1)
 
-    # stratify exige >= 2 amostras por classe; com pouca amostra, desliga.
     minimo = min(int((y_enc == i).sum()) for i in range(len(classes)))
-    X_tr, X_te, y_tr, y_te = train_test_split(
-        X, y_enc, test_size=0.2, random_state=42,
-        stratify=y_enc if minimo >= 5 else None,
-    )
+    tr, te, por_grupo = separa_teste(y_enc, grupos)
 
-    print("\n  treinando MLP (256, 128)...")
-    modelo = MLPClassifier(
-        hidden_layer_sizes=(256, 128),
-        activation="relu",
-        max_iter=500,
-        random_state=42,
-        early_stopping=minimo >= 10,   # precisa de amostra pra separar validacao
-        validation_fraction=0.1,
-    )
-    modelo.fit(X_tr, y_tr)
-
-    y_pred = modelo.predict(X_te)
+    print("\n  treinando MLP (256, 128) pra medir...")
+    modelo = novo_mlp(minimo)
+    modelo.fit(X[tr], y_enc[tr])
+    y_pred = modelo.predict(X[te])
+    if por_grupo:
+        print("\n  Nota em %d videos/gravacoes que o treino NAO viu:"
+              % len(set(grupos[te])))
+    else:
+        print("\n  Nota em amostras sorteadas (sem informacao de video: pode sair")
+        print("  otimista -- rode o Treinar.bat de novo pra refazer os .npz):")
     print("\n" + classification_report(
-        y_te, y_pred,
+        y_enc[te], y_pred,
         labels=list(range(len(classes))),
         target_names=classes,
         zero_division=0,
     ))
+
+    # O modelo que vai pro app aprende com TUDO. Antes ele ficava so com os
+    # 80% do treino, e os 20% guardados pra nota nunca chegavam ao celular.
+    print("  treinando o modelo final com todas as amostras...")
+    modelo = novo_mlp(minimo)
+    modelo.fit(X, y_enc)
     return modelo, classes
 
 
@@ -217,17 +288,72 @@ def limpa_individuais(pasta_assets, classes):
     return removidos
 
 
-def carrega_negativos(tipo, n_features):
-    """Amostras de 'Nada' (mao a mostra sem sinalizar), se houver."""
+def carrega_negativos(tipo, n_features, com_grupos=False):
+    """Amostras de 'Nada' (mao a mostra sem sinalizar), se houver. No
+    dinamico, inclui as maos dos videos de gesto de corpo (extrair_negativos.py)
+    e as trocas sinteticas entre letras paradas (transicoes_sinteticas)."""
     caminho = DATA / ("dataset_negativos_static.npz" if tipo == "estatico"
                       else "dataset_negativos_dynamic.npz")
+    partes, grupos = [], []
+    if caminho.exists():
+        dados = np.load(caminho, allow_pickle=True)
+        X = dados["X"].astype(np.float32)
+        if X.ndim == 2 and X.shape[1] == n_features and len(X):
+            partes.append(X)
+            grupos.append(dados["grupo"] if "grupo" in dados.files
+                          else np.array(["NADA/%d" % (i // 30) for i in range(len(X))]))
+    if tipo == "dinamico":
+        X = transicoes_sinteticas()
+        if X is not None:
+            partes.append(X)
+            grupos.append(np.array(["TROCA/%d" % (i // 50) for i in range(len(X))]))
+    if not partes:
+        return (None, None) if com_grupos else None
+    X, g = np.vstack(partes), np.concatenate(grupos)
+    return (X, g) if com_grupos else X
+
+
+def transicoes_sinteticas(quantidade=2000, semente=42):
+    """Janelas de 10 quadros em que a mao TROCA de uma letra parada pra outra.
+
+    E o falso positivo relatado no app: "quando vamos comecar o sinal ou fazer
+    outra letra, sai uma letra com movimento". Na troca a mao se mexe de
+    verdade (passa do limiar de movimento), e um modelo que nunca viu troca
+    nenhuma chamava aquilo de H, J, K, X ou Z.
+
+    Sai das fotos (dataset_static.npz): interpola os 21 pontos de uma letra ate
+    os de outra, com a aceleracao/freada de uma mao real, renormaliza cada
+    quadro como o app faz e soma um tremor pequeno. Pega so um trecho da troca
+    por janela, como o app pega.
+    """
+    caminho = DATA / "dataset_static.npz"
     if not caminho.exists():
         return None
-    X = np.load(caminho)["X"].astype(np.float32)
-    return X if X.ndim == 2 and X.shape[1] == n_features else None
+    dados = np.load(caminho, allow_pickle=True)
+    fotos, rotulos = dados["X"].astype(np.float32), dados["y"].astype(str)
+    letras = sorted(set(rotulos))
+    if len(letras) < 2:
+        return None
+
+    rs = np.random.RandomState(semente)
+    janelas = []
+    for _ in range(quantidade):
+        a, b = rs.choice(letras, 2, replace=False)
+        pa = fotos[rs.choice(np.where(rotulos == a)[0])].reshape(21, 2)
+        pb = fotos[rs.choice(np.where(rotulos == b)[0])].reshape(21, 2)
+        inicio = rs.uniform(0.0, 0.6)
+        fim = min(1.0, inicio + rs.uniform(0.3, 1.0))
+        quadros = []
+        for s in np.linspace(inicio, fim, 10):
+            s = 0.5 - 0.5 * np.cos(np.pi * s)
+            p = (1 - s) * pa + s * pb + rs.normal(0, 0.01, pa.shape)
+            p = (p - p[0]).reshape(-1)
+            quadros.append(p / (np.abs(p).max() or 1.0))
+        janelas.append(np.concatenate(quadros))
+    return np.array(janelas, dtype=np.float32)
 
 
-def treina_individuais(tipo, X, y, n_features, pasta_assets, alvos):
+def treina_individuais(tipo, X, y, n_features, pasta_assets, alvos, espelho=True):
     """Treina um modelo SIM/NAO por letra e salva em <LETRA>/model.onnx.
 
     O app testa estes ANTES do modelo geral (LetraEngine.kt:209-219), entao
@@ -238,10 +364,18 @@ def treina_individuais(tipo, X, y, n_features, pasta_assets, alvos):
     outras letras gravadas MAIS os clipes de 'Nada'. Sem os de 'Nada', o
     modelo so aprende a separar L de outras letras e passa a dizer "sim" pra
     qualquer mao solta no ar.
+
+    ATENCAO: "as outras letras gravadas" sao so as que estao em
+    computer/data. Uma letra que nunca foi gravada aqui nunca entra como
+    "nao" -- o D treinado sem nenhuma foto de L nao aprende que L nao e D.
     """
     from sklearn.neural_network import MLPClassifier
 
     negativos_nada = carrega_negativos(tipo, n_features)
+    if espelho:
+        X, y, _ = com_espelho(X, y, None)
+        if negativos_nada is not None:
+            negativos_nada = np.vstack([negativos_nada, espelha(negativos_nada)])
     disponiveis = sorted(set(y))
     print("\n  --- modelos individuais (%s) ---" % tipo)
     if negativos_nada is None:
@@ -260,22 +394,26 @@ def treina_individuais(tipo, X, y, n_features, pasta_assets, alvos):
 
         positivos = X[y == letra]
         outras = X[y != letra]
-        partes = [p for p in (outras, negativos_nada) if p is not None and len(p)]
-        if not partes:
+        if not len(outras) and (negativos_nada is None or not len(negativos_nada)):
             print("  %-3s pulado: nao ha nenhum exemplo de 'nao' pra comparar." % letra)
             continue
-        negativos = np.vstack(partes)
 
         if len(positivos) < 10:
             print("  %-3s pulado: so %d amostras (minimo 10)." % (letra, len(positivos)))
             continue
 
         # Equilibra os dois lados: um modelo treinado com 20 "sim" e 2000 "nao"
-        # aprende a responder sempre "nao".
+        # aprende a responder sempre "nao". E sorteia as outras letras e o
+        # 'Nada' separados: com milhares de janelas de 'Nada', um sorteio unico
+        # quase nao deixava letra nenhuma entre os "nao".
         rs = np.random.RandomState(42)
-        limite = min(len(negativos), max(len(positivos) * 3, 60))
-        if len(negativos) > limite:
-            negativos = negativos[rs.choice(len(negativos), limite, replace=False)]
+        limite = max(len(positivos) * 3, 60)
+        fontes = [p for p in (outras, negativos_nada) if p is not None and len(p)]
+        cota = limite // len(fontes)
+        negativos = np.vstack([
+            p[rs.choice(len(p), cota, replace=False)] if len(p) > cota else p
+            for p in fontes
+        ])
 
         X_bin = np.vstack([positivos, negativos]).astype(np.float32)
         y_bin = np.concatenate([np.ones(len(positivos), dtype=int),
@@ -310,7 +448,9 @@ def checa_regressao(classes, pasta_assets, forcar):
 
     atuais = [l.strip() for l in labels_path.read_text(encoding="utf-8").splitlines()
               if l.strip()]
-    faltando = sorted(set(atuais) - set(classes))
+    # NADA nao e letra: treinar com --sem-nada depois de um modelo que tinha a
+    # classe nao faz o app esquecer nada.
+    faltando = sorted(set(atuais) - set(classes) - {NADA})
     if not faltando:
         return True
 
@@ -336,7 +476,19 @@ def checa_regressao(classes, pasta_assets, forcar):
     return False
 
 
-def processa(tipo, limpar, forcar=False, reforcar=None):
+def guarda_copia(pasta_assets):
+    """Copia do modelo geral e dos individuais antes de substituir/apagar --
+    e o que o RestaurarModelo.bat devolve."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from backup import faz_backup
+
+    arquivos = sorted(p for p in pasta_assets.rglob("*") if p.is_file())
+    pasta = faz_backup(arquivos, pasta_assets.name)
+    if pasta is not None:
+        print("  copia do modelo anterior: %s" % pasta.relative_to(REPO))
+
+
+def processa(tipo, limpar, forcar=False, reforcar=None, espelho=True, com_nada=True):
     dataset, n_features, pasta_assets, maximo = CONFIG[tipo]
 
     print("\n" + "=" * 62)
@@ -350,14 +502,15 @@ def processa(tipo, limpar, forcar=False, reforcar=None):
 
     dados = np.load(dataset, allow_pickle=True)
     X = dados["X"].astype(np.float32)
-    y = dados["y"]
+    y = dados["y"].astype(str)
+    grupos = dados["grupo"].astype(str) if "grupo" in dados.files else None
 
     if X.ndim != 2 or X.shape[1] != n_features:
         print("  ERRO: o dataset tem shape %s, mas o app espera [N, %d]."
               % (X.shape, n_features))
         return None
 
-    X, y = balanceia(X, y, maximo)
+    X, y, grupos = balanceia(X, y, maximo, grupos)
 
     # Modo reforco: mexe SO nos modelos individuais das letras pedidas.
     # O modelo geral (e o labels.txt) fica exatamente como estava, entao
@@ -367,7 +520,8 @@ def processa(tipo, limpar, forcar=False, reforcar=None):
         if not alvos:
             print("  nenhuma das letras pedidas e desta categoria -- pulando.")
             return None
-        feitos = treina_individuais(tipo, X, y, n_features, pasta_assets, alvos)
+        guarda_copia(pasta_assets)
+        feitos = treina_individuais(tipo, X, y, n_features, pasta_assets, alvos, espelho)
         if not feitos:
             print("\n  Nenhum modelo individual foi gerado.")
             return False
@@ -375,14 +529,35 @@ def processa(tipo, limpar, forcar=False, reforcar=None):
         print("  o modelo geral NAO foi tocado -- as outras letras continuam iguais.")
         return True
 
-    modelo, classes = treina(X, y)
+    # A classe NADA: so no dinamico. No estatico o app so consulta o modelo
+    # com a mao parada, e quem decide "nao e letra" la e o portao de confianca.
+    if tipo == "dinamico" and com_nada:
+        Xn, gn = carrega_negativos(tipo, n_features, com_grupos=True)
+        if Xn is None:
+            print("  sem exemplos de 'nao e letra': o modelo sai sem a classe %s." % NADA)
+        else:
+            teto = max(int((y == c).sum()) for c in set(y))
+            if len(Xn) > teto:
+                escolha = np.random.RandomState(42).choice(len(Xn), teto, replace=False)
+                Xn, gn = Xn[escolha], gn[escolha]
+            print("  classe %s: %d exemplos de mao que nao esta fazendo letra" % (NADA, len(Xn)))
+            X = np.vstack([X, Xn])
+            y = np.concatenate([y, np.full(len(Xn), NADA)])
+            grupos = np.concatenate([grupos, gn]) if grupos is not None else None
 
-    if not checa_regressao(classes, pasta_assets, forcar):
+    if espelho:
+        X, y, grupos = com_espelho(X, y, grupos)
+        print("  com espelho: %d amostras (cada uma tambem com a outra mao)" % len(X))
+
+    if not checa_regressao(sorted(set(y)), pasta_assets, forcar):
         return "bloqueado"
+
+    modelo, classes = treina(X, y, grupos)
 
     destino_modelo = pasta_assets / "geral" / "model.onnx"
     destino_labels = pasta_assets / "geral" / "labels.txt"
 
+    guarda_copia(pasta_assets)
     exporta_onnx(modelo, n_features, destino_modelo)
     salva_labels(classes, destino_labels)
 
@@ -422,6 +597,10 @@ def main():
     ap.add_argument("--reforcar", metavar="LETRAS",
                     help="aprimora SO estas letras (ex: --reforcar E,F,G), gerando "
                          "modelos individuais e sem tocar no modelo geral")
+    ap.add_argument("--sem-espelho", action="store_true",
+                    help="nao acrescenta as amostras espelhadas (outra mao)")
+    ap.add_argument("--sem-nada", action="store_true",
+                    help="modelo dinamico sem a classe NADA (como era antes)")
     args = ap.parse_args()
 
     if not ASSETS.exists():
@@ -445,7 +624,8 @@ def main():
         print("Modo REFORCO: %s (o modelo geral nao sera alterado)" % " ".join(reforcar))
 
     tipos = ["estatico", "dinamico"] if args.tipo == "todos" else [args.tipo]
-    resultados = {t: processa(t, args.limpar_individuais, args.forcar, reforcar)
+    resultados = {t: processa(t, args.limpar_individuais, args.forcar, reforcar,
+                              espelho=not args.sem_espelho, com_nada=not args.sem_nada)
                   for t in tipos}
 
     print("\n" + "=" * 62)

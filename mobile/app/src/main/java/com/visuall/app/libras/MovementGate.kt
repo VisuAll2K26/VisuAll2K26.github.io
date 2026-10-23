@@ -31,9 +31,9 @@ internal enum class EstadoMovimento {
 // que continha o gesto inteiro, justamente a mais informativa, nunca chegava a
 // ser classificada tempo suficiente, e a letra se perdia bem no fim do
 // movimento. Agora o portão continua aberto por ENCERRAMENTO_MS depois que o
-// movimento cai (estado ENCERRANDO), tempo em que o LetraEngine reclassifica a
-// janela CONGELADA no instante em que o gesto acabou — sem deixar os quadros
-// de mão em repouso entrarem nela.
+// movimento cai (estado ENCERRANDO), tempo em que o LetraEngine mantém a letra
+// que as janelas do gesto já confirmaram (DynamicLetterConsensus) — sem deixar
+// os quadros de mão em repouso entrarem na decisão.
 internal class MovementGate(
     private val limiarMovimento: Float = LibrasAnalyzer.LIMIAR_MOVIMENTO,
     private val sustentadoMs: Long = LibrasAnalyzer.MOVIMENTO_SUSTENTADO_MS,

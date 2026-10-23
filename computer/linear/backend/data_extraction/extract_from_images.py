@@ -8,7 +8,10 @@ Estrutura esperada:
     C/  ...
     ...
 
-Gera: computer/data/dataset_static.npz  (X com shape [N, 42], y com shape [N])
+Gera: computer/data/dataset_static.npz
+  X     [N, 42]  21 pontos * x,y
+  y     [N]      letra
+  grupo [N]      de que gravação saiu a foto (ver grupo_da_foto)
 """
 import cv2
 import mediapipe as mp
@@ -29,6 +32,7 @@ RAIZ          = Path(__file__).resolve().parents[3]
 PASTA_IMAGENS = str(RAIZ / "data" / "raw_images")   # pasta raiz com subpastas por letra
 SAIDA         = str(RAIZ / "data" / "dataset_static.npz")
 EXTENSOES     = [".jpg", ".jpeg", ".png", ".bmp", ".webp"]
+LADO_MENOR    = 480   # o INPUT_SHORT_SIDE do app
 # ======================================
 
 def normalize_landmarks(pontos):
@@ -47,7 +51,14 @@ hands = mp.solutions.hands.Hands(
     min_detection_confidence=0.5,
 )
 
-X_all, y_all = [], []
+def grupo_da_foto(img_path):
+    """A gravação de onde a foto saiu. O Gravar.bat tira ~18 fotos quase
+    iguais por gravação (AAAAMMDD_HHMMSS_NN.jpg); a avaliação honesta separa
+    treino e teste por gravação, não por foto."""
+    prefixo, _, sufixo = img_path.stem.rpartition("_")
+    return f"{img_path.parent.name}/{prefixo if prefixo and sufixo.isdigit() else img_path.stem}"
+
+X_all, y_all, g_all = [], [], []
 letras = sorted([d for d in os.listdir(PASTA_IMAGENS)
                  if os.path.isdir(os.path.join(PASTA_IMAGENS, d))])
 print(f"Letras encontradas: {letras}\n")
@@ -64,14 +75,27 @@ for letra in letras:
             falhas += 1
             continue
 
+        altura, largura = frame.shape[:2]
+        # Foto de celular tem 12 MP; o app manda pro MediaPipe um quadro com
+        # lado menor de 480 (INPUT_SHORT_SIDE). Mesma resolução, mesmo ponto.
+        escala = min(1.0, LADO_MENOR / min(altura, largura))
+        if escala < 1.0:
+            frame = cv2.resize(frame, (round(largura * escala), round(altura * escala)),
+                               interpolation=cv2.INTER_AREA)
+        # O aspectX do app (LibrasAnalyzer): leva o x pra proporção 4:3
+        # deitada. Em 640x480 vale 1.0; sem isto uma foto de celular em pé
+        # entrava com a mão deformada na horizontal em relação ao que o app
+        # vê.
+        aspecto = 0.75 * largura / altura
         rgb     = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = hands.process(rgb)
 
         if results.multi_hand_landmarks:
-            pontos = [[lm.x, lm.y] for lm in results.multi_hand_landmarks[0].landmark]
+            pontos = [[lm.x * aspecto, lm.y] for lm in results.multi_hand_landmarks[0].landmark]
             dados  = normalize_landmarks(pontos)   # 42 valores (21 pontos * x,y)
             X_all.append(dados)
             y_all.append(letra)
+            g_all.append(grupo_da_foto(img_path))
             amostras_letra += 1
         else:
             falhas += 1
@@ -87,7 +111,7 @@ else:
     X = np.array(X_all, dtype=np.float32)
     y = np.array(y_all)
 
-    np.savez(SAIDA, X=X, y=y)
+    np.savez(SAIDA, X=X, y=y, grupo=np.array(g_all))
     print(f"\n✅ Dataset salvo em '{SAIDA}'")
     print(f"   Total de amostras: {len(X)}")
     print(f"   Shape X: {X.shape}")

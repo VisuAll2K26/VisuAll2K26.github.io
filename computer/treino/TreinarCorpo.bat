@@ -28,7 +28,13 @@ REM ============================================================
 cd /d "%~dp0.."
 set "RAIZ=%CD%"
 
-python --version >nul 2>&1
+REM Prefere o Python do ambiente do projeto (computer\.venv, Python 3.11):
+REM o "python" do PATH pode ser uma versao que o treino nao aceita (3.13+).
+REM Como criar o ambiente: computer\treino\RETREINO_FINAL.md, passo 0.
+set "PY=python"
+if exist "%CD%\.venv\Scripts\python.exe" set "PY=%CD%\.venv\Scripts\python.exe"
+
+"%PY%" --version >nul 2>&1
 if errorlevel 1 (
     echo.
     echo ERRO: Python nao encontrado no PATH.
@@ -36,26 +42,26 @@ if errorlevel 1 (
     exit /b 1
 )
 
-python treino\checar_python.py
+"%PY%" treino\checar_python.py
 if errorlevel 1 (
     pause
     exit /b 1
 )
 
-python -c "import cv2, mediapipe, numpy, sklearn" >nul 2>&1
+"%PY%" -c "import cv2, mediapipe, numpy, sklearn" >nul 2>&1
 if errorlevel 1 (
     echo Instalando dependencias basicas...
-    python -m pip install -r requirements.txt
+    "%PY%" -m pip install -r requirements.txt
     if errorlevel 1 ( pause & exit /b 1 )
 )
 
-python -c "import tensorflow" >nul 2>&1
+"%PY%" -c "import tensorflow" >nul 2>&1
 if errorlevel 1 (
     echo.
     echo O treino de gestos corporais usa TensorFlow, que ainda nao esta
     echo instalado. Sao uns 600 MB -- pode demorar bastante na primeira vez.
     echo.
-    python -m pip install tensorflow
+    "%PY%" -m pip install tensorflow
     if errorlevel 1 (
         echo.
         echo ERRO ao instalar o TensorFlow.
@@ -81,7 +87,7 @@ echo Lendo os clipes. Isto demora: cada quadro passa pelo detector de
 echo corpo E pelo de maos. Alguns minutos e normal.
 echo.
 
-python "%RAIZ%\treino\treinar_corpo.py" %*
+"%PY%" "%RAIZ%\treino\treinar_corpo.py" %*
 if errorlevel 1 (
     echo.
     echo Terminou com problema. Veja a mensagem acima.

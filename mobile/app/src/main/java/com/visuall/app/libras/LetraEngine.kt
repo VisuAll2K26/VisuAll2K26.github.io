@@ -31,13 +31,18 @@ internal class LetraEngine(
         .bufferedReader().readLines().filter { it.isNotBlank() }
     private val labelsDinamico  = context.assets.open("letras_dinamicas/geral/labels.txt")
         .bufferedReader().readLines().filter { it.isNotBlank() }
+    // O modelo dinâmico pode ter, além das letras, a classe NADA: "a mão se
+    // mexeu, mas não fez letra nenhuma" (ver exportar_onnx.py). Ela continua
+    // em labelsDinamico, porque a ordem dali é a ordem das saídas do modelo,
+    // mas não é letra — fica fora de tudo que a tela mostra ou calibra.
+    private val letrasDinamicas = labelsDinamico.filter { LetterDecision.normalizarSaida(it) != "-" }
 
     // Alfabeto completo (estáticas + dinâmicas), em ordem alfabética, pra UI
     // de calibração percorrer.
-    val labelsAlfabeto: List<String> = (labelsEstatico + labelsDinamico).distinct().sorted()
+    val labelsAlfabeto: List<String> = (labelsEstatico + letrasDinamicas).distinct().sorted()
     // Quais delas exigem movimento — usado pra instrução na tela ("segure" vs
     // "faça o movimento").
-    val labelsDinamicasSet: Set<String> = labelsDinamico.toSet()
+    val labelsDinamicasSet: Set<String> = letrasDinamicas.toSet()
     private val modelosEstaticosIndividuais = carregarModelosIndividuais(
         context, labelsEstatico, "letras_estaticas"
     )
@@ -49,7 +54,7 @@ internal class LetraEngine(
             .toSet()
     }.getOrDefault(emptySet())
     private val modelosDinamicosIndividuais = carregarModelosIndividuais(
-        context, labelsDinamico, "letras_dinamicas"
+        context, letrasDinamicas, "letras_dinamicas"
     )
     private val reforcosDinamicosRestritos: Set<String> = runCatching {
         context.assets.open("letras_dinamicas/reforcos_restritos.txt")
@@ -58,29 +63,44 @@ internal class LetraEngine(
             .filter { it.isNotBlank() }
             .toSet()
     }.getOrDefault(emptySet())
-    private val trainingStore = CalibrationTrainingStore(context, labelsEstatico, labelsDinamico)
+    private val trainingStore = CalibrationTrainingStore(context, labelsEstatico, letrasDinamicas)
 
     private val bufferLm          = ArrayDeque<FloatArray>()
     private val bufferPontos      = ArrayDeque<FloatArray>()
+    // Instante de cada quadro dos buffers acima, na mesma ordem: o movimento é
+    // medido numa janela de tempo (MOVIMENTO_JANELA_MS), não de quadros.
+    private val bufferTempos      = ArrayDeque<Long>()
     private val calibrationLock   = Any()
     private val calibrationBuffer = ArrayList<FloatArray>()
     @Volatile private var calibrationTarget: String? = null
 
+    // Limiar de movimento e exigência do consenso, conforme o modelo dinâmico
+    // tenha ou não a classe NADA — ver AjusteDinamico.
+    private val ajuste = AjusteDinamico.para(labelsDinamico)
+
     // Só confiamos no modelo dinâmico depois de o movimento ser sustentado por
     // MOVIMENTO_SUSTENTADO_MS. A regra (e o histórico de por que ela é medida
     // em tempo e não em contagem de frames) está no MovementGate.
-    private val movementGate = MovementGate()
+    private val movementGate = MovementGate(limiarMovimento = ajuste.limiarMovimento)
 
-    // A janela de quadros do gesto, guardada no último quadro em que o
-    // movimento ainda estava sustentado. É ela que é reclassificada durante o
-    // ENCERRANDO — ver escolherClassificacao. null = não há gesto recente.
-    private var janelaCongelada: List<FloatArray>? = null
-    private var janelaCruaCongelada: List<FloatArray>? = null
+    // Só deixa a letra dinâmica sair se várias janelas seguidas do gesto
+    // concordarem — ver DynamicLetterConsensus. É também quem guarda a letra
+    // que vale durante o ENCERRANDO.
+    private val consenso = DynamicLetterConsensus(ajuste.consensoJanelas, ajuste.consensoMs)
+    // Houve classificação dinâmica desde o último PARADO.
+    private var gestoEmCurso = false
 
     private data class ModeloIndividual(
         val label: String,
         val session: OrtSession
     )
+
+    private companion object {
+        // Modo da predição quando o modelo dinâmico respondeu NADA. Começa com
+        // "dinamico" de propósito: o LetterCommitGate continua usando os
+        // tempos das letras com movimento.
+        const val MODO_NADA = "dinamico_nada"
+    }
 
     private fun carregarModelosIndividuais(
         context: Context,
@@ -127,15 +147,20 @@ internal class LetraEngine(
 
     fun resetMovimentoSustentado() {
         movementGate.reset()
-        janelaCongelada = null
-        janelaCruaCongelada = null
+        consenso.reset()
+        gestoEmCurso = false
     }
 
     fun limparBuffer() {
+        esvaziarJanela()
+        consenso.reset()
+        gestoEmCurso = false
+    }
+
+    private fun esvaziarJanela() {
         bufferLm.clear()
         bufferPontos.clear()
-        janelaCongelada = null
-        janelaCruaCongelada = null
+        bufferTempos.clear()
     }
 
     // Pipeline completo de um frame com mão detectada: normaliza, alimenta a
@@ -143,16 +168,19 @@ internal class LetraEngine(
     // classifica (estático, dinâmico ou calibração pessoal) e emite o
     // feedback textual correspondente.
     fun process(pontos: List<Pair<Float, Float>>): Prediction {
+        val agora = System.currentTimeMillis()
         val pontosCrus = pontosParaArray(pontos)
         val dados = LibrasMath.normalizeLandmarks(pontos)
         captureCalibrationFrame(dados)
         bufferPontos.addLast(pontosCrus)
         bufferLm.addLast(dados)
+        bufferTempos.addLast(agora)
         while (bufferPontos.size > LibrasAnalyzer.JANELA_MLP + 5) bufferPontos.removeFirst()
         while (bufferLm.size > LibrasAnalyzer.JANELA_MLP + 5) bufferLm.removeFirst()
+        while (bufferTempos.size > LibrasAnalyzer.JANELA_MLP + 5) bufferTempos.removeFirst()
 
         val movimento = calcularMovimento()
-        val predicao = escolherClassificacao(dados, movimento)
+        val predicao = escolherClassificacao(dados, movimento, agora)
         emitirFeedback(predicao, movimento)
         return predicao
     }
@@ -183,7 +211,7 @@ internal class LetraEngine(
             // e o balao dele cobria o chip da letra.
             prediction.letra != "-" && prediction.confianca >= 0.92f -> ""
             prediction.letra != "-" && prediction.confianca >= 0.82f -> "SEGURE MAIS FIRME"
-            movimento > LibrasAnalyzer.LIMIAR_MOVIMENTO -> "MOVIMENTO ALTO"
+            movimento > ajuste.limiarMovimento -> "MOVIMENTO ALTO"
             prediction.confianca >= 0.68f -> "QUASE: AJUSTE ANGULO"
             else -> "APROXIME A MAO"
         }
@@ -226,19 +254,27 @@ internal class LetraEngine(
         return arr
     }
 
-    private fun calcularMovimento(): Float =
-        maxOf(calcularMovimentoForma(), calcularMovimentoCru())
+    // Desvio dos pontos nos quadros dos últimos MOVIMENTO_JANELA_MS. Eram os
+    // últimos 5 quadros, o que fazia a mesma mão "mexer" mais num celular
+    // lento que num rápido — ver MOVIMENTO_JANELA_MS.
+    private fun calcularMovimento(): Float {
+        val quadros = LibrasMath.quadrosNaJanela(
+            bufferTempos.toList(),
+            LibrasAnalyzer.MOVIMENTO_JANELA_MS,
+            LibrasAnalyzer.MOVIMENTO_QUADROS_MINIMOS
+        )
+        if (quadros == 0) return 0f
+        return maxOf(calcularMovimentoForma(quadros), calcularMovimentoCru(quadros))
+    }
 
-    private fun calcularMovimentoForma(): Float {
-        if (bufferLm.size < 5) return 0f
-        val recent = bufferLm.toList().takeLast(5)
+    private fun calcularMovimentoForma(quadros: Int): Float {
+        val recent = bufferLm.toList().takeLast(quadros)
         return LibrasMath.std(recent.map { it[2] }) + LibrasMath.std(recent.map { it[3] }) +
                LibrasMath.std(recent.map { it[16] }) + LibrasMath.std(recent.map { it[17] })
     }
 
-    private fun calcularMovimentoCru(): Float {
-        if (bufferPontos.size < 5) return 0f
-        val recent = bufferPontos.toList().takeLast(5)
+    private fun calcularMovimentoCru(quadros: Int): Float {
+        val recent = bufferPontos.toList().takeLast(quadros)
         val escalas = recent.mapNotNull { escalaDaMaoCrua(it).takeIf { escala -> escala > 0f } }
         if (escalas.isEmpty()) return 0f
         val escala = escalas.average().toFloat()
@@ -268,42 +304,40 @@ internal class LetraEngine(
             LibrasMath.std(frames.map { it[base + 1] })) / escala
     }
 
-    private fun escolherClassificacao(dados: FloatArray, movimento: Float): Prediction {
+    private fun escolherClassificacao(dados: FloatArray, movimento: Float, agora: Long): Prediction {
         // A histerese de movimento (por que ela existe e como se comporta) vive
         // no MovementGate, que é testável porque recebe o instante.
-        when (movementGate.avaliar(movimento, System.currentTimeMillis())) {
+        when (movementGate.avaliar(movimento, agora)) {
             EstadoMovimento.SUSTENTADO -> {
                 if (bufferLm.size >= LibrasAnalyzer.JANELA_MLP &&
                     bufferPontos.size >= LibrasAnalyzer.JANELA_MLP) {
                     val janela = bufferLm.toList().takeLast(LibrasAnalyzer.JANELA_MLP)
                     val janelaCrua = bufferPontos.toList().takeLast(LibrasAnalyzer.JANELA_MLP)
-                    // Guardada a cada quadro: quando o movimento parar, esta é
-                    // a última janela feita SÓ de quadros do gesto.
-                    janelaCongelada = janela
-                    janelaCruaCongelada = janelaCrua
-                    return classificarDinamico(janela, janelaCrua)
+                    gestoEmCurso = true
+                    // Uma janela sozinha não basta: a letra só sai depois de
+                    // várias janelas seguidas concordarem.
+                    return consenso.registrar(classificarDinamico(janela, janelaCrua), agora)
                 }
             }
             EstadoMovimento.ENCERRANDO -> {
                 // O movimento acabou. Continuar lendo bufferLm aqui misturaria
                 // a mão voltando ao repouso dentro da janela do gesto — que é
                 // exatamente o que fazia a letra dinâmica se perder no fim do
-                // movimento. Reclassificamos a janela congelada, sempre a
-                // mesma, até a letra estabilizar e entrar na frase.
-                val janela = janelaCongelada
-                val janelaCrua = janelaCruaCongelada
-                if (janela != null && janelaCrua != null) {
-                    return classificarDinamico(janela, janelaCrua)
+                // movimento. Mantemos a letra que o gesto JÁ confirmou enquanto
+                // durava, até ela estabilizar e entrar na frase. Antes isto
+                // reclassificava a última janela, sempre a mesma, e uma janela
+                // de sorte virava letra sem ninguém concordar com ela.
+                if (gestoEmCurso) {
+                    return consenso.predicaoConfirmada ?: Prediction("-", 0f, "dinamico")
                 }
             }
             EstadoMovimento.PARADO -> {
-                if (janelaCongelada != null) {
-                    janelaCongelada = null
-                    janelaCruaCongelada = null
+                if (gestoEmCurso) {
+                    gestoEmCurso = false
+                    consenso.reset()
                     // O rabicho do gesto que acabou não pode virar o começo da
                     // janela do próximo: a janela recomeça vazia.
-                    bufferLm.clear()
-                    bufferPontos.clear()
+                    esvaziarJanela()
                 }
             }
         }
@@ -319,8 +353,10 @@ internal class LetraEngine(
     // features que eles nunca viram: era isso que fazia o "M" só sair com a
     // mão esquerda.
     //
-    // A correção definitiva é retreinar com as amostras espelhadas. Enquanto
-    // isso, resolvemos na inferência: se a orientação como veio não gerou
+    // A correção definitiva é retreinar com as amostras espelhadas — o que o
+    // exportar_onnx.py passou a fazer sozinho; os modelos treinados antes
+    // disso continuam precisando deste remendo. Ele resolve na inferência: se
+    // a orientação como veio não gerou
     // resposta, tentamos a espelhada. O espelho entra só quando o modelo já
     // disse "não sei", e ainda precisa passar pelos MESMOS portões de
     // confiança e margem — então não afrouxa nada, só cobre o lado que faltava.
@@ -418,6 +454,9 @@ internal class LetraEngine(
             janelaCrua
         )
         if (direto.letra != "-") return direto
+        // O modelo afirmou que não é letra. O espelho existe pra cobrir a mão
+        // que o treino não viu, não pra dar uma segunda chance a um "não".
+        if (direto.modo == MODO_NADA) return direto
 
         return DynamicLetterMotion.filtrar(
             classificarDinamicoOrientado(LibrasMath.mirrorLandmarks(entrada)),
@@ -450,6 +489,12 @@ internal class LetraEngine(
             labels = labelsDinamico,
             modo = "dinamico"
         )
+        // NADA com confiança é o modelo afirmando "isto não é letra". Nenhum
+        // reforço passa por cima disso: os reforços nunca viram mão se mexendo
+        // à toa, e era assim que o H saía pra qualquer movimento.
+        if (geral.letra != "-" && LetterDecision.normalizarSaida(geral.letra) == "-") {
+            return geral.copy(letra = "-", modo = MODO_NADA)
+        }
 
         val modelosRestritos = modelosDinamicosIndividuais.filter {
             it.label in reforcosDinamicosRestritos
@@ -544,7 +589,7 @@ internal class LetraEngine(
             }
 
             val frames = calibrationBuffer.map { it.copyOf() }
-            if (letra in labelsDinamico) {
+            if (letra in letrasDinamicas) {
                 val sequencias = trainingStore.saveDynamicSamples(letra, frames)
                 if (sequencias == 0) {
                     onFeedback("MOVIMENTE MAIS PARA $letra", LibrasAnalyzer.FEEDBACK_ALERTA)

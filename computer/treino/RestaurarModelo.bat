@@ -17,7 +17,13 @@ REM ============================================================
 
 cd /d "%~dp0.."
 
-python "%~dp0restaurar.py"
+REM Prefere o Python do ambiente do projeto (computer\.venv, Python 3.11):
+REM o "python" do PATH pode ser uma versao que o treino nao aceita (3.13+).
+REM Como criar o ambiente: computer\treino\RETREINO_FINAL.md, passo 0.
+set "PY=python"
+if exist "%CD%\.venv\Scripts\python.exe" set "PY=%CD%\.venv\Scripts\python.exe"
+
+"%PY%" "%~dp0restaurar.py"
 
 echo.
 pause

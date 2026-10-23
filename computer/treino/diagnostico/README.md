@@ -27,6 +27,8 @@ python treino\diagnostico\extrai_cache.py
 | `avalia.py` | Qual o acerto **honesto** do modelo de corpo? Treino e teste separados por vídeo, nunca por pedaço do mesmo vídeo. |
 | `avalia_reforcos_estaticos.py` | Como o modelo geral e os reforços das letras paradas se saem nas amostras? |
 | `avalia_reforcos_dinamicos.py` | Como os modelos das letras com movimento competem entre si? |
+| `simula_dinamicas.py` | As letras com movimento entram na frase quando devem, e só quando devem? Passa os vídeos pelo caminho inteiro do app (detector, portão de movimento, modelos, consenso, estabilidade), a 15 quadros/s, e conta acertos e letras falsas com a mão se mexendo à toa. Os limiares vêm do próprio `LibrasAnalyzer.kt`. |
+| `simula_estaticas.py` | O que o app responde em cada foto de letra parada, de perto e de longe, com a mão gravada e com a outra mão? Foi o que mostrou o D virando L de longe. |
 | `confere_pacote.py` | O `.tflite` que foi para dentro do APK funciona como o app o usa? |
 
 ### Sinais de corpo: captura e limiares

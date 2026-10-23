@@ -95,6 +95,23 @@ internal object LibrasMath {
         return sqrt(values.map { (it - mean) * (it - mean) }.average().toFloat())
     }
 
+    // Quantos dos quadros mais recentes entram na medida de movimento: os dos
+    // últimos [janelaMs] (contando a partir do mais novo), mas nunca menos que
+    // [minimo] — num aparelho lento a janela de tempo pode ter um quadro só, e
+    // desvio de um ponto só é zero. Devolve 0 quando nem [minimo] quadros
+    // existem ainda (não dá pra medir). [tempos] em ordem, do mais antigo
+    // pro mais novo. Ver MOVIMENTO_JANELA_MS.
+    fun quadrosNaJanela(tempos: List<Long>, janelaMs: Long, minimo: Int): Int {
+        if (tempos.size < minimo || tempos.isEmpty()) return 0
+        val agora = tempos.last()
+        var n = 0
+        for (i in tempos.indices.reversed()) {
+            if (agora - tempos[i] > janelaMs) break
+            n++
+        }
+        return maxOf(n, minimo)
+    }
+
     // Escala mínima aceita entre os ombros. Abaixo disso a pose veio
     // degenerada (pessoa de lado, ombro fora do quadro, detecção ruim) e
     // dividir por um número quase zero explodiria as features — um ponto a

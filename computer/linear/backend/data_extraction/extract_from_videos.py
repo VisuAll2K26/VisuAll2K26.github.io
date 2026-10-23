@@ -9,7 +9,12 @@ Estrutura esperada:
     X/  ...
     Z/  ...
 
-Gera: computer/data/dataset_dynamic.npz  (X com shape [N, 420], y com shape [N])
+Gera: computer/data/dataset_dynamic.npz
+  X     [N, 420]  janelas de 10 quadros (10 * 42 valores)
+  y     [N]       letra
+  grupo [N]       de que vídeo saiu a janela. Janelas do mesmo vídeo são
+                  quase iguais, então a avaliação honesta separa treino e
+                  teste por vídeo (exportar_onnx.py usa isto).
 """
 import cv2
 import mediapipe as mp
@@ -29,8 +34,18 @@ if hasattr(_sys.stdout, "reconfigure"):
 RAIZ          = Path(__file__).resolve().parents[3]
 PASTA_VIDEOS  = str(RAIZ / "data" / "raw_videos")   # pasta raiz com subpastas por letra
 JANELA        = 10                        # quantos frames por amostra
-PULO          = 3                         # pula N frames entre janelas (evita amostras idênticas)
+PULO          = 3                         # pula N frames do vídeo entre janelas (evita amostras idênticas)
 SAIDA         = str(RAIZ / "data" / "dataset_dynamic.npz")
+# De quantos em quantos quadros do vídeo a janela é montada. O vídeo tem 30
+# quadros/s, mas o app classifica a ~13-15: lá, 10 quadros cobrem ~0,7s de
+# gesto, enquanto 10 quadros seguidos do vídeo cobrem só 0,33s. Treinar só
+# com quadros seguidos ensinava o gesto numa velocidade que o celular nunca
+# vê. Com 1, 2 e 3 o modelo vê o gesto a 30, 15 e 10 quadros/s.
+PASSOS        = (1, 2, 3)
+# Lado menor da imagem que vai pro MediaPipe -- o mesmo INPUT_SHORT_SIDE do
+# app. Antes todo vídeo era espremido em 320x240, o que além de perder
+# detalhe achatava o vídeo de celular (retrato) em paisagem.
+LADO_MENOR    = 480
 # ======================================
 
 def normalize_landmarks(pontos):
@@ -42,6 +57,20 @@ def normalize_landmarks(pontos):
     max_v = max(abs(v) for v in norm) or 1.0
     return [v / max_v for v in norm]
 
+def janelas_dos_trechos(trechos):
+    """Janelas de todos os trechos com mão, em cada taxa de PASSOS."""
+    janelas = []
+    for trecho in trechos:
+        for passo in PASSOS:
+            sub = trecho[::passo]
+            # PULO é contado em quadros do vídeo, não da sequência reduzida
+            pulo = max(1, PULO // passo)
+            i = 0
+            while i + JANELA <= len(sub):
+                janelas.append(np.array(sub[i:i + JANELA]).flatten())  # 10 * 42 = 420 valores
+                i += pulo
+    return janelas
+
 hands = mp.solutions.hands.Hands(
     static_image_mode=False,
     max_num_hands=1,
@@ -50,7 +79,7 @@ hands = mp.solutions.hands.Hands(
     min_tracking_confidence=0.5
 )
 
-X_all, y_all = [], []
+X_all, y_all, g_all = [], [], []
 total_videos = 0
 letras = sorted([d for d in os.listdir(PASTA_VIDEOS)
                  if os.path.isdir(os.path.join(PASTA_VIDEOS, d))])
@@ -61,39 +90,49 @@ for letra in letras:
     videos = list(pasta.glob("*.mp4")) + list(pasta.glob("*.mov"))
     total_videos += len(videos)
     amostras_letra = 0
+    sem_janela = 0
 
     for video_path in videos:
         cap = cv2.VideoCapture(str(video_path))
-        frames_lm = []  # landmarks de cada frame do vídeo
+        trechos = [[]]  # landmarks de cada frame, em trechos com a mão visível
 
         while True:
             ok, frame = cap.read()
             if not ok:
                 break
-            small   = cv2.resize(frame, (320, 240))
-            rgb     = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+            altura, largura = frame.shape[:2]
+            escala = min(1.0, LADO_MENOR / min(altura, largura))
+            if escala < 1.0:
+                frame = cv2.resize(frame, (round(largura * escala), round(altura * escala)))
+            # O mesmo aspectX do app (LibrasAnalyzer): leva o x pra proporção
+            # 4:3 deitada em que o modelo é ensinado. Em 640x480 vale 1.0, e
+            # o vídeo de celular em pé deixa de entrar com a mão esticada.
+            aspecto = 0.75 * largura / altura
+            rgb     = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = hands.process(rgb)
 
             if results.multi_hand_landmarks:
-                pontos = [[lm.x, lm.y] for lm in results.multi_hand_landmarks[0].landmark]
+                pontos = [[lm.x * aspecto, lm.y] for lm in results.multi_hand_landmarks[0].landmark]
                 dados  = normalize_landmarks(pontos)
-                frames_lm.append(dados)
-            else:
-                # frame sem mão — reseta sequência
-                frames_lm = []
+                trechos[-1].append(dados)
+            elif trechos[-1]:
+                # frame sem mão: fecha o trecho. Antes isto jogava fora tudo
+                # o que veio antes, e só o último trecho do vídeo contava.
+                trechos.append([])
 
         cap.release()
 
-        # Monta janelas deslizantes
-        i = 0
-        while i + JANELA <= len(frames_lm):
-            janela = frames_lm[i:i + JANELA]
-            X_all.append(np.array(janela).flatten())  # 10 * 42 = 420 valores
+        janelas = janelas_dos_trechos(trechos)
+        if not janelas:
+            sem_janela += 1
+        for janela in janelas:
+            X_all.append(janela)
             y_all.append(letra)
-            amostras_letra += 1
-            i += PULO
+            g_all.append(f"{letra}/{video_path.name}")
+        amostras_letra += len(janelas)
 
-    print(f"  {letra}: {len(videos)} vídeos → {amostras_letra} amostras")
+    aviso = f"  ({sem_janela} sem {JANELA} quadros seguidos com mão)" if sem_janela else ""
+    print(f"  {letra}: {len(videos)} vídeos → {amostras_letra} amostras{aviso}")
 
 hands.close()
 
@@ -115,7 +154,7 @@ if len(X_all) == 0:
 X = np.array(X_all, dtype=np.float32)
 y = np.array(y_all)
 
-np.savez(SAIDA, X=X, y=y)
+np.savez(SAIDA, X=X, y=y, grupo=np.array(g_all))
 print(f"\n✅ Dataset salvo em '{SAIDA}'")
 print(f"   Total de amostras: {len(X)}")
 print(f"   Shape X: {X.shape}")

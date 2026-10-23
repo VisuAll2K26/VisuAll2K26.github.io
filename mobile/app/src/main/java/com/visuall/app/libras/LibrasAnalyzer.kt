@@ -127,6 +127,28 @@ class LibrasAnalyzer(
         // (MOVIMENTO_SUSTENTADO_MS) — uma tremida de 1 frame não basta, um
         // traço real de H/J/K/X/Z (que dura ~300-500ms) sim.
         const val LIMIAR_MOVIMENTO       = 0.30f
+        // O mesmo limiar quando o modelo dinâmico tem a classe NADA (ver
+        // AjusteDinamico). Os 0.30 existem porque o modelo antigo chamava de
+        // letra qualquer mão se mexendo, então o portão tinha que segurar
+        // quase todo movimento. Com NADA quem recusa "não é letra" é o próprio
+        // modelo, e o portão alto só cortava gesto real: medido com
+        // computer/treino/diagnostico (modelo com NADA, vídeos que o treino não
+        // viu, 15 quadros/s), 0.30 deixava entrar 47 de 95 letras e 0.20
+        // deixa 83 — com as mesmas 0 de 300 trocas entre letras paradas
+        // virando letra. Não fui abaixo disso porque nenhum vídeo mede mão
+        // PARADA segurando letra estática a 15 quadros/s: se letra parada
+        // começar a falhar, subir este valor primeiro.
+        const val LIMIAR_MOVIMENTO_COM_NADA = 0.20f
+        // O movimento é o desvio dos pontos nos quadros dos últimos
+        // MOVIMENTO_JANELA_MS, não nos últimos 5 quadros. Com 5 quadros a
+        // medida dependia da velocidade do celular: a 30 quadros/s eles
+        // cobrem 130ms e a mão mal sai do lugar (5 de 95 letras passavam no
+        // simulador com o modelo de hoje); a 10 quadros/s cobrem 400ms e
+        // qualquer ajeitada de mão vira "movimento". 330ms é o que os 5
+        // quadros cobriam a ~15 quadros/s, então nessa taxa nada muda.
+        // MOVIMENTO_QUADROS_MINIMOS garante quadros pra medir em aparelho lento.
+        const val MOVIMENTO_JANELA_MS    = 330L
+        const val MOVIMENTO_QUADROS_MINIMOS = 3
         const val J_TRAJETO_X_MIN        = 0.18f
         const val J_TRAJETO_Y_MIN        = 0.24f
         const val J_TRAJETO_TOTAL_MIN    = 0.55f
@@ -138,15 +160,38 @@ class LibrasAnalyzer(
         // validar em celular real; se ainda sair J fácil, subir este valor
         // antes de mexer em LIMIAR_MOVIMENTO de novo.
         const val MOVIMENTO_SUSTENTADO_MS = 130L
-        // Por quanto tempo, DEPOIS que o movimento cai, a janela do gesto que
-        // acabou continua sendo classificada como dinâmica (estado ENCERRANDO
-        // do MovementGate). Precisa ser maior que ESTAB_MIN_DINAMICO_MS: é
+        // Por quanto tempo, DEPOIS que o movimento cai, a letra que o gesto
+        // confirmou continua valendo (estado ENCERRANDO do MovementGate).
+        // Precisa ser maior que ESTAB_MIN_DINAMICO_MS: é
         // dentro dessa janela que a letra tem que se manter estável pra entrar
         // na frase. Com o portão fechando no mesmo quadro em que o movimento
         // parava, o gesto terminava antes de a letra ser aceita e a letra se
         // perdia — o sintoma relatado em teste era o app "continuar analisando"
         // depois do fim do movimento e não capturar a letra.
         const val MOVIMENTO_ENCERRAMENTO_MS = 400L
+        // Quantas janelas SEGUIDAS do gesto precisam apontar a mesma letra, e
+        // por quanto tempo, antes de a letra dinâmica valer — ver
+        // DynamicLetterConsensus. Sem isso, uma única janela de sorte virava
+        // letra (relatado: "as letras com movimento saem fácil demais").
+        // Exigir as duas coisas mantém o critério igual em aparelho rápido
+        // (muitas janelas quase iguais em pouco tempo) e lento (poucas
+        // janelas). Medido com computer/treino/diagnostico/simula_dinamicas.py
+        // e os modelos de hoje, a 15 quadros/s: trocas entre duas letras
+        // paradas que viravam letra com movimento caíram de 96 em 300 para 3,
+        // e mão se mexendo à toa (vídeos de gesto de corpo) de 17 para 7,8
+        // letras por minuto. O custo: dos vídeos reais de H/J/K/X/Z, entram
+        // 28 de 95 em vez de 40 — o que sobrava eram quase só J e Z, porque
+        // o reforço do H responde H pra K, X e J (ver CHANGELOG).
+        const val CONSENSO_DINAMICO_JANELAS = 3
+        const val CONSENSO_DINAMICO_MS      = 200L
+        // O mesmo, com a classe NADA no modelo (ver LIMIAR_MOVIMENTO_COM_NADA).
+        // A janela de sorte que o consenso barra quase não existe mais —
+        // NADA é a resposta dela —, e exigir 3 janelas em 200ms segurava 5
+        // das 95 letras reais (78 contra 83, sem nenhuma troca a mais virando
+        // letra). Mantido em 2/130 em vez de desligado: é a proteção contra
+        // movimento que nenhum vídeo de treino mostrou.
+        const val CONSENSO_DINAMICO_JANELAS_COM_NADA = 2
+        const val CONSENSO_DINAMICO_MS_COM_NADA      = 130L
         const val TEMPO_PRA_LIMPAR       = 3_000L
         // No modo corpo a referencia exige mais tempo (TEMPO_LIMPAR_CORPO =
         // 5.0 em m01_visuall_config.py): um sinal de corpo dura muito mais que
