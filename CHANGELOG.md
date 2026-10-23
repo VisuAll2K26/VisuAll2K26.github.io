@@ -76,6 +76,12 @@ Formato: **Constante(s)** — valor atual — decisão e por quê — status.
   quando o modelo nao tem `NADA` (ver `AjusteDinamico`). Status:
   **implementado, aguardando validacao no aparelho**.
 
+- **Icone do app com a logo oficial** — olho com obturador na iris, tracado
+  do arquivo da logo e convertido em vetor (`ic_launcher_foreground.xml` e a
+  versao monocromatica do icone tematico); os PNGs legados de `mipmap-*`
+  foram refeitos com o mesmo desenho, sem o nome (o launcher ja escreve
+  "VisuAll" embaixo). Status: **implementado**.
+
 - **Interrogacao tambem no Alfabeto** — o `FaceMarkerEngine` agora roda a cada
   cinco frames nos dois modos. O evento e o `?` atendem Corpo e Alfabeto; pontos
   vermelhos e painel tecnico continuam exclusivos do Corpo para nao poluir a

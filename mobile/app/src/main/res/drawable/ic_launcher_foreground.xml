@@ -1,31 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Camada da frente do ícone adaptativo.
+    Camada da frente do ícone adaptativo: a logo oficial do VisuAll (olho com
+    o obturador de câmera na íris), sem o nome.
 
-    Antes isto era PNG (mipmap-*/ic_launcher_foreground.png) com a arte inteira,
-    o nome "VisuAll" e o fundo preto chapado embutidos. Três problemas de uma
-    vez, e é por isso que o ícone saía torto no aparelho:
+    O desenho foi traçado do arquivo da logo e virou vetor, então fica nítido
+    em qualquer densidade. Continua valendo o que levou o ícone a ser vetor:
+      1. o launcher mostra só os 72dp centrais deste canvas de 108dp e garante
+         apenas o círculo de 66dp de dentro deles — o olho tem 60dp de largura
+         e as pontas dele ficam no meio da altura, dentro desse círculo;
+      2. a camada é transparente: o preto vem de ic_launcher_background;
+      3. sem o nome "VisuAll": o launcher já escreve embaixo, e a 48dp o texto
+         seria ilegível.
 
-      1. Um foreground adaptativo é desenhado num canvas de 108dp do qual o
-         launcher mostra só os 72dp centrais, e garante apenas os 66dp de dentro
-         deles — o resto é folga pra máscara e pra animação de parallax. Os PNGs
-         tinham o tamanho do ícone LEGADO (48 a 192 px), então eram esticados e
-         o texto saía cortado pela máscara.
-      2. Com o preto opaco dentro da própria camada da frente, a cor de fundo
-         (ic_launcher_background) nunca aparecia e sobrava um quadrado preto
-         atrás da máscara.
-      3. Nome do app dentro do ícone é redundante: o launcher já escreve
-         "VisuAll" embaixo, e a 48dp aquele texto era ilegível de qualquer jeito.
-
-    Agora a marca é vetor (nítida em qualquer densidade), transparente, sem texto
-    e inteira dentro dos 66dp centrais. A espiral do desenho antigo virou íris
-    cheia: traço fino de espiral empasta a 48dp, que é o tamanho em que o ícone
-    é realmente visto. A seta virou sobrancelha — desenhada saindo da amêndoa,
-    ela fazia o conjunto ler como o símbolo de Marte; e a sobrancelha diz algo
-    sobre o app, que usa justamente o marcador de sobrancelha pra pergunta.
-
-    minSdk é 26, então TODO aparelho suportado passa por aqui; os PNGs legados
-    em mipmap-* só existem pra contextos fora do launcher.
+    fillType evenOdd: os vãos entre as faixas do olho e entre as lâminas do
+    obturador são buracos do mesmo caminho.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -33,23 +21,8 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Olho: contorno em amêndoa, centrado em 54,54. -->
     <path
-        android:pathData="M30,54 Q54,28 78,54 Q54,80 30,54 Z"
-        android:strokeColor="#F5C842"
-        android:strokeWidth="6.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-
-    <!-- Íris cheia (dois arcos = círculo), no dourado escuro da paleta. -->
-    <path
-        android:pathData="M46,54 A8,8 0 1,0 62,54 A8,8 0 1,0 46,54 Z"
-        android:fillColor="#E8A020" />
-
-    <!-- Sobrancelha: dá assimetria e tira o ícone do lugar de "olho genérico". -->
-    <path
-        android:pathData="M36,34 Q54,24 72,34"
-        android:strokeColor="#F5C842"
-        android:strokeWidth="5"
-        android:strokeLineCap="round" />
+        android:fillColor="#F8E89A"
+        android:fillType="evenOdd"
+        android:pathData="M60.98,56.49L60.80,56.39L56.58,56.88L53.34,57.07L53.20,57.26L55.69,60.94L55.94,61.05L57.63,60.41L59.03,59.44L60.35,57.94L60.86,57.03ZM50.58,54.72L48.60,58.55L48.62,59.09L50.04,60.22L51.51,60.90L53.38,61.29L54.87,61.23L54.93,61.07L50.81,54.78ZM51.45,51.34L46.87,51.71L46.64,51.88L46.36,53.40L46.50,55.22L47.04,56.88L47.51,57.73L47.92,58.20L48.05,58.20L48.29,57.83L50.23,53.86L51.51,51.51ZM60.08,49.34L59.87,49.34L56.51,55.90L56.53,56.18L60.68,55.83L61.17,55.73L61.38,55.55L61.62,54.14L61.42,52.06L60.86,50.54ZM54.78,50.17L52.50,46.77L52.27,46.58L52.02,46.56L50.35,47.20L48.91,48.21L47.80,49.41L47.34,50.13L47.02,50.95L47.94,50.99L51.45,50.62L54.72,50.39ZM53.22,46.40L53.20,46.60L57.19,52.74L57.38,52.78L59.11,49.51L59.40,48.79L59.36,48.50L58.22,47.55L56.43,46.69L54.66,46.31ZM52.99,44.48L50.85,44.95L49.59,45.49L48.00,46.54L46.87,47.59L45.63,49.32L45.02,50.72L44.60,52.43L44.52,54.39L44.83,56.25L45.37,57.73L46.21,59.17L47.02,60.16L47.76,60.86L48.95,61.77L50.70,62.63L52.89,63.15L54.99,63.17L56.84,62.78L58.45,62.12L59.77,61.27L61.11,60.04L62.12,58.68L63.00,56.78L63.44,54.78L63.46,53.01L63.15,51.32L62.78,50.23L62.24,49.14L61.07,47.55L60.00,46.54L58.39,45.49L56.45,44.75L54.76,44.46ZM53.67,45.51L55.34,45.61L57.23,46.15L58.53,46.81L59.85,47.88L60.82,48.95L61.75,50.58L62.20,51.98L62.41,53.67L62.32,54.87L61.91,56.55L61.09,58.20L60.10,59.50L58.86,60.55L57.46,61.38L56.18,61.83L54.62,62.10L53.32,62.08L51.75,61.83L50.06,61.13L48.58,60.12L47.34,58.88L46.36,57.26L45.80,55.63L45.57,53.88L45.78,52.06L46.23,50.64L46.91,49.34L47.94,48.05L49.10,47.06L50.44,46.29L52.23,45.70ZM84.00,53.73L83.51,52.74L81.96,50.48L80.50,48.66L78.91,46.95L75.86,44.13L73.92,42.61L71.78,41.12L68.13,39.02L64.71,37.54L62.84,36.96L61.19,36.63L59.56,36.42L57.96,36.38L54.84,36.69L51.57,37.64L48.52,39.14L45.33,41.41L43.18,43.43L41.25,45.59L31.62,58.76L31.46,58.78L31.01,58.37L29.19,56.29L27.48,53.81L27.96,52.93L29.36,51.09L32.51,47.78L34.82,45.78L36.53,44.52L39.74,42.52L41.70,41.53L43.86,40.67L46.15,38.79L47.90,37.68L50.17,36.45L49.22,36.47L47.12,36.80L44.73,37.35L42.59,38.03L39.68,39.25L35.83,41.41L33.89,42.75L31.54,44.62L28.55,47.49L25.88,50.68L24.39,52.93L24.00,53.84L25.57,56.43L27.07,58.41L28.45,60.00L30.72,62.28L32.63,63.97L35.93,66.38L39.27,68.36L41.80,69.60L43.80,70.38L46.21,71.10L47.76,71.41L50.70,71.62L52.06,71.55L53.96,71.27L55.83,70.77L57.40,70.20L60.41,68.57L62.80,66.73L64.69,64.88L66.73,62.37L75.94,48.42L76.29,48.58L77.94,50.29L79.53,52.21L80.46,53.53L80.46,53.96L79.57,55.26L76.91,58.45L74.40,60.86L72.54,62.39L68.77,64.94L64.94,66.80L62.57,68.86L60.61,70.20L58.78,71.14L58.57,71.43L59.52,71.43L62.37,70.83L65.89,69.66L69.80,67.76L74.23,64.88L77.10,62.45L79.94,59.56L82.54,56.29L83.81,54.27ZM73.57,46.17L73.53,46.44L72.46,48.13L72.26,48.21L68.65,45.39L66.75,44.13L64.55,42.83L61.17,41.29L59.81,40.94L57.77,40.79L55.59,41.04L54.39,41.33L54.02,41.53L54.12,41.70L56.47,42.11L58.41,42.67L60.88,43.64L62.47,44.40L64.51,45.55L67.04,47.20L70.26,49.67L70.94,50.37L70.65,50.99L65.17,59.34L63.62,61.52L62.47,62.90L60.90,64.47L59.52,65.56L57.96,66.57L55.50,67.72L53.73,68.26L51.07,68.63L48.25,68.46L45.55,67.85L42.63,66.71L39.31,65.00L36.75,63.35L33.87,61.03L34.08,60.53L35.06,59.19L35.33,59.13L38.20,61.56L41.86,64.08L45.47,65.95L48.46,66.98L50.39,67.19L52.10,67.10L53.94,66.71L54.72,66.42L55.11,66.16L54.89,65.99L51.80,65.62L49.34,65.00L46.25,63.73L44.03,62.55L41.20,60.76L39.33,59.36L36.73,57.09L36.92,56.62L43.45,47.65L45.28,45.53L47.16,43.76L48.93,42.38L51.55,40.85L53.28,40.15L55.55,39.56L57.96,39.31L59.87,39.41L62.34,39.91L65.00,40.83L67.45,42.03L71.06,44.23Z" />
 </vector>
