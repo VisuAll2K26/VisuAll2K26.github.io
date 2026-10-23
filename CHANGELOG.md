@@ -41,8 +41,8 @@ Formato: **Constante(s)** — valor atual — decisão e por quê — status.
   espelho no treino, com a mao espelhada (camera frontal) caia de 48 pra 20.
   Status: **implementado; o modelo em si ainda nao foi retreinado** — o app
   instalado hoje continua com o modelo antigo e os portoes antigos ate o
-  `Treinar.bat --tipo dinamico --limpar-individuais`
-  (`computer/treino/RETREINO_FINAL.md`). Pendente de validacao no aparelho:
+  retreino (hoje: `computer/treino/3 - Retreinar letras.bat`, que tambem
+  apaga os reforcos individuais das letras com movimento). Pendente de validacao no aparelho:
   nenhum video mede mao PARADA segurando letra estatica a 15 quadros/s; se
   letra parada passar a falhar com o modelo novo, subir
   `LIMIAR_MOVIMENTO_COM_NADA` primeiro.

@@ -1,65 +1,44 @@
-﻿"""Extrai os landmarks de cada clipe UMA vez e guarda em cache.
+﻿"""Monta o cache_corpo.npz que os diagnosticos de corpo leem.
 
-Guarda a sequencia inteira por clipe (sem recortes), pra permitir avaliar
-com separacao por clipe depois sem reprocessar video.
+Guarda a sequencia inteira de cada gravacao de palavra (quadros ja
+normalizados, sem recortes), pra avaliar separando treino e teste por
+gravacao. Sai do banco de pontos (computer/treino/pontos/palavras), entao
+nao precisa dos videos nem do MediaPipe: leva segundos, em qualquer PC.
 """
 import sys
 from pathlib import Path
 
 import numpy as np
 
-RAIZ = Path(__file__).resolve()
 COMPUTER = Path(__file__).resolve().parents[2]
-REPO = COMPUTER.parent
-sys.path.insert(0, str(COMPUTER / "treino"))
+sys.path.insert(0, str(COMPUTER / "treino" / "codigo"))
 
-import treinar_corpo as tc  # noqa: E402
-import mediapipe as mp      # noqa: E402
+import pontos  # noqa: E402
+import treinar_palavras as tc  # noqa: E402
 
 SAIDA = Path(__file__).parent / "cache_corpo.npz"
 
 
 def main():
-    gestos = sorted([p.name for p in tc.DATA.iterdir()
-                     if p.is_dir() and any(p.glob("*.mp4"))])
-
-    pose = mp.solutions.pose.Pose(static_image_mode=False, model_complexity=0,
-                                  min_detection_confidence=0.5,
-                                  min_tracking_confidence=0.5)
-    maos = mp.solutions.hands.Hands(static_image_mode=False, max_num_hands=2,
-                                    model_complexity=0,
-                                    min_detection_confidence=0.5,
-                                    min_tracking_confidence=0.5)
-
+    pontos.atualiza("palavras")
     seqs, rotulos, nomes = [], [], []
-    try:
-        for gesto in gestos:
-            clipes = sorted(tc.DATA.joinpath(gesto).glob("*.mp4"))
-            ok = 0
-            for clipe in clipes:
-                quadros = tc.extrai_video(clipe, pose, maos)
-                if len(quadros) < 10:
-                    print("    %s: so %d quadros com corpo - ignorado"
-                          % (clipe.name, len(quadros)), flush=True)
-                    continue
-                seqs.append(np.array(quadros, dtype=np.float32))
-                rotulos.append(gesto)
-                nomes.append("%s/%s" % (gesto, clipe.name))
-                ok += 1
-            print("  %-12s %2d/%d clipes usados" % (gesto, ok, len(clipes)), flush=True)
-    finally:
-        pose.close()
-        maos.close()
+    contagem = {}
+    for rotulo, ident, dados in pontos.carrega("palavras"):
+        quadros = tc.quadros_da_gravacao(dados)
+        if len(quadros) < tc.QUADROS_MINIMOS:
+            print("    %s/%s: so %d quadros com corpo - ignorado" % (rotulo, ident, len(quadros)))
+            continue
+        seqs.append(np.array(quadros, dtype=np.float32))
+        rotulos.append(rotulo)
+        nomes.append("%s/%s" % (rotulo, ident))
+        contagem[rotulo] = contagem.get(rotulo, 0) + 1
+    for rotulo, n in sorted(contagem.items()):
+        print("  %-12s %d gravacoes" % (rotulo, n))
 
-    np.savez_compressed(
-        SAIDA,
-        seqs=np.array(seqs, dtype=object),
-        rotulos=np.array(rotulos),
-        nomes=np.array(nomes),
-    )
-    print("\nsalvo: %s  (%d clipes)" % (SAIDA, len(seqs)))
+    np.savez_compressed(SAIDA, seqs=np.array(seqs, dtype=object),
+                        rotulos=np.array(rotulos), nomes=np.array(nomes))
+    print("\nsalvo: %s  (%d gravacoes)" % (SAIDA, len(seqs)))
 
 
 if __name__ == "__main__":
     sys.exit(main())
-

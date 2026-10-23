@@ -17,7 +17,7 @@ import numpy as np
 CACHE = Path(__file__).parent / "cache_corpo.npz"
 COMPUTER = Path(__file__).resolve().parents[2]
 REPO = COMPUTER.parent
-sys.path.insert(0, str(COMPUTER / "treino"))
+sys.path.insert(0, str(COMPUTER / "treino" / "codigo"))
 
 N_POSE = 33
 N_TOTAL = 75

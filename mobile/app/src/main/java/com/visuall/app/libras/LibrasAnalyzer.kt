@@ -252,7 +252,7 @@ class LibrasAnalyzer(
         // Medianas medidas: AJUDAR 0.0267 | COMPUTADOR 0.0599 | CONVERSAR
         // 0.0448 | PESSOA 0.0133 | SURDO 0.0106 | NEUTRO 0.0083.
         //
-        // Este valor tem um gemeo em computer/treino/treinar_corpo.py (END_MOTION). Os
+        // Este valor tem um gemeo em computer/treino/codigo/treinar_palavras.py (END_MOTION). Os
         // dois PRECISAM andar juntos: e o recorte que o modelo aprende a
         // classificar. Mudar um sem o outro foi exatamente o erro acima.
         const val BODY_END_MOTION        = 0.030f

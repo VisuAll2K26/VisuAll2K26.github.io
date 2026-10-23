@@ -37,8 +37,8 @@ Modelos individuais (um por letra, tentados antes do geral) ficam em:
 
 O treino verifica sozinho cada modelo exportado (nome e formato da entrada)
 antes de considerar o export valido — ver `valida` em
-[`../treino/exportar_onnx.py`](../treino/exportar_onnx.py) (letras) e
-[`../treino/treinar_corpo.py`](../treino/treinar_corpo.py) (gestos). A
+[`../treino/codigo/treinar_letras.py`](../treino/codigo/treinar_letras.py) (letras) e
+[`../treino/codigo/treinar_palavras.py`](../treino/codigo/treinar_palavras.py) (palavras). A
 verificacao das letras roda o modelo de verdade, entao precisa do
 `onnxruntime` instalado; sem ele o treino avisa e segue sem validar.
 

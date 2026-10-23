@@ -7,7 +7,7 @@ comporta diferente, a primeira pergunta é "o que o Python faz aqui?".
 | Arquivo | O que é |
 |---|---|
 | `backend/app.py` | O reconhecedor inteiro: webcam, MediaPipe Holistic, modelos, tradução da frase e o servidor que manda tudo para a página. |
-| `backend/data_extraction/` | Lê as fotos e os vídeos gravados e extrai os pontos da mão (usado pelo `Treinar.bat`). |
+| `backend/data_extraction/` | Monta os datasets do reconhecedor de PC (`../data/dataset_*.npz`) a partir do banco de pontos do treino ([`../treino/pontos/`](../treino/)). |
 | `backend/training/` | Treina os modelos de letras do PC (`.pkl` em `../models/`). |
 | `frontend/index.html` | A página que mostra a câmera, a letra e a frase. |
 

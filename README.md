@@ -28,7 +28,7 @@ Tudo roda no próprio aparelho: sem nuvem e sem internet.
 | Modo | O que reconhece |
 |---|---|
 | **Alfabeto** | As letras de Libras, paradas (A, B, C...) e com movimento (H, J, K, X, Z), formando palavras letra por letra. |
-| **Corpo** | Sinais de palavra inteira (AJUDAR, COMPUTADOR, CONVERSAR, PESSOA, SURDO), em sequência, sem precisar pausar entre eles. A frase sai com concordância. |
+| **Corpo** | Sinais de palavra inteira (AJUDAR, COMPUTADOR, CONVERSAR, PESSOA, SURDO e as que forem ensinadas), em sequência, sem precisar pausar entre eles. A frase sai com concordância. |
 | **Óculos** | A mesma coisa, mas com a câmera presa na armação dos óculos, mandando a imagem para o celular por Wi-Fi. |
 
 ## Como funciona
@@ -96,10 +96,20 @@ Passo a passo: [mobile/README.md](mobile/README.md).
 
 <br>
 
-Tudo é **duplo-clique** nos `.bat` de `computer\treino\`: grava com a webcam,
-treina e o modelo novo já cai dentro do app. Depois é só recompilar.
+Tudo é **duplo-clique** em `computer\treino\`:
 
-Guia rápido: [computer/treino/README.md](computer/treino/README.md).
+| `.bat` | Para quê |
+|---|---|
+| `1 - Adicionar palavra nova` | ensinar uma palavra que o app ainda não conhece |
+| `2 - Retreinar palavras` | o app acertar melhor as palavras que já conhece |
+| `3 - Retreinar letras` | o app acertar melhor as letras |
+
+Abre a câmera, você grava (ESPAÇO), fecha (Q), responde **S** e ele treina.
+O modelo novo já cai dentro do app: é só rodar de novo pelo Android Studio.
+O treino **soma** as gravações novas a tudo que já foi gravado, em qualquer
+computador, então nada é esquecido.
+
+Passo a passo: [computer/treino/README.md](computer/treino/README.md).
 
 </details>
 
@@ -133,14 +143,43 @@ Detalhes: [site/README.md](site/README.md).
 
 ---
 
+## Continuar o trabalho em outro computador
+
+Tudo que é preciso para continuar está no repositório, **menos os vídeos
+gravados**, que ficam só no PC de quem gravou. Eles não fazem falta: o treino
+usa o **banco de pontos** (`computer/treino/pontos/`), que vem no clone.
+
+1. Instale o [Git](https://git-scm.com/), o [Git LFS](https://git-lfs.com/)
+   (os modelos do app vão por ele), o
+   [Python 3.11](https://www.python.org/downloads/release/python-3119/) e o
+   [Android Studio](https://developer.android.com/studio).
+2. Clone e baixe os modelos:
+   ```powershell
+   git lfs install
+   git clone https://github.com/VisuAll2K26/VisuAll2K26.github.io.git VisuAll
+   cd VisuAll
+   git lfs pull
+   ```
+3. Para gravar e treinar, abra um dos `.bat` de `computer\treino\` (na
+   primeira vez ele prepara o Python sozinho). Para o app, abra a pasta
+   `mobile` no Android Studio e clique em **Run**.
+4. Treinou e ficou bom? Commit e push de `computer/treino/pontos` e de
+   `mobile/app/src/main/assets`, para o próximo computador partir daí.
+
+O que estava sendo feito e o que falta gravar:
+[computer/treino/README.md → Onde o retreino parou](computer/treino/README.md#onde-o-retreino-parou-outubro-de-2026).
+Por que cada limiar do app tem o valor que tem: [CHANGELOG.md](CHANGELOG.md).
+
+---
+
 ## Toda a documentação
 
 | Assunto | Onde |
 |---|---|
 | Compilar e entender o app | [mobile/README.md](mobile/README.md) |
 | Formato dos modelos que o app lê | [mobile/TREINAMENTO_MODELOS.md](mobile/TREINAMENTO_MODELOS.md) |
-| Treinar, guia rápido | [computer/treino/README.md](computer/treino/README.md) |
-| Treinar, guia completo | [computer/TREINO.md](computer/TREINO.md) |
+| Gravar e treinar letras e palavras | [computer/treino/README.md](computer/treino/README.md) |
+| Onde o retreino parou e o que falta gravar | [computer/treino/README.md](computer/treino/README.md#onde-o-retreino-parou-outubro-de-2026) |
 | Testar no celular de verdade | [computer/VALIDACAO.md](computer/VALIDACAO.md) |
 | Scripts de medição do treino | [computer/treino/diagnostico/README.md](computer/treino/diagnostico/README.md) |
 | Óculos, do zero | [oculos/README.md](oculos/README.md) |

@@ -39,7 +39,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 COMPUTER = Path(__file__).resolve().parents[2]
 REPO = COMPUTER.parent
-DATA = COMPUTER / "data"
+DATA = COMPUTER / "treino" / "gravacoes"
 APP = REPO / "mobile" / "app" / "src" / "main"
 ASSETS = APP / "assets"
 DINAMICAS = ASSETS / "letras_dinamicas"
@@ -135,10 +135,9 @@ def carrega_tudo():
     itens = {}
     fontes = []
     for letra in LETRAS:
-        fontes += [("letra", letra, v, 1) for v in sorted((DATA / "raw_videos" / letra).glob("*.mp4"))]
-    for sub in sorted((DATA / "raw_negativos").glob("*")):
-        fontes += [("nada", sub.name, v, 1) for v in sorted(sub.glob("*.mp4"))]
-    for sub in sorted((DATA / "raw_body_videos").glob("*")):
+        fontes += [("letra", letra, v, 1) for v in sorted((DATA / "letras" / letra).glob("*.mp4"))]
+    fontes += [("nada", "NADA", v, 1) for v in sorted((DATA / "letras" / "NADA").glob("*.mp4"))]
+    for sub in sorted((DATA / "palavras").glob("*")):
         fontes += [("corpo", sub.name, v, 2) for v in sorted(sub.glob("*.mp4"))]
     novos = 0
     for tipo, rotulo, caminho, maos in fontes:
@@ -155,7 +154,7 @@ def carrega_tudo():
         if novos % 20 == 0:
             print("   %d videos lidos" % novos, flush=True)
     det = None
-    for f in sorted((DATA / "raw_images").glob("*/*.jpg")):
+    for f in sorted((DATA / "letras").glob("*/*.jpg")):
         chave = "foto|%s|%d|%d" % (f.relative_to(DATA).as_posix(), f.stat().st_size, int(f.stat().st_mtime))
         if chave in antigo:
             itens[chave] = antigo[chave]

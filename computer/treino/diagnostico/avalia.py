@@ -1,6 +1,7 @@
 ﻿"""Avaliacao honesta: separa TREINO e TESTE por CLIPE, nunca por recorte.
 
-O treinar_corpo.py gera 3 recortes do mesmo clipe e depois embaralha tudo no
+O treinar_corpo.py (hoje treino/codigo/treinar_palavras.py, que ja separa
+por gravacao) gerava 3 recortes do mesmo clipe e depois embaralha tudo no
 train_test_split -> pedacos do mesmo video caem nos dois lados e o acerto sai
 inflado. Aqui o clipe inteiro fica de um lado so.
 """
@@ -12,8 +13,8 @@ import numpy as np
 CACHE = Path(__file__).parent / "cache_corpo.npz"
 COMPUTER = Path(__file__).resolve().parents[2]
 REPO = COMPUTER.parent
-sys.path.insert(0, str(COMPUTER / "treino"))
-import treinar_corpo as tc  # noqa: E402
+sys.path.insert(0, str(COMPUTER / "treino" / "codigo"))
+import treinar_palavras as tc  # noqa: E402
 
 RECORTES = [(0.0, 1.0), (0.0, 0.9), (0.1, 1.0)]
 

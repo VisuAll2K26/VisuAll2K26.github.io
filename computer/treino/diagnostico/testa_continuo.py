@@ -29,8 +29,8 @@ from experimento import CACHE, movimento  # noqa: E402
 
 COMPUTER = Path(__file__).resolve().parents[2]
 REPO = COMPUTER.parent
-sys.path.insert(0, str(COMPUTER / "treino"))
-import treinar_corpo as tc  # noqa: E402
+sys.path.insert(0, str(COMPUTER / "treino" / "codigo"))
+import treinar_palavras as tc  # noqa: E402
 
 ATIVO = REPO / "mobile/app/src/main/assets/gestos/geral"
 FPS_TREINO, FPS_APP = 30.0, 13.0

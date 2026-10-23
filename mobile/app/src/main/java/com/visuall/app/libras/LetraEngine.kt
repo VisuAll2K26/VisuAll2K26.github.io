@@ -32,7 +32,7 @@ internal class LetraEngine(
     private val labelsDinamico  = context.assets.open("letras_dinamicas/geral/labels.txt")
         .bufferedReader().readLines().filter { it.isNotBlank() }
     // O modelo dinâmico pode ter, além das letras, a classe NADA: "a mão se
-    // mexeu, mas não fez letra nenhuma" (ver exportar_onnx.py). Ela continua
+    // mexeu, mas não fez letra nenhuma" (ver treinar_letras.py). Ela continua
     // em labelsDinamico, porque a ordem dali é a ordem das saídas do modelo,
     // mas não é letra — fica fora de tudo que a tela mostra ou calibra.
     private val letrasDinamicas = labelsDinamico.filter { LetterDecision.normalizarSaida(it) != "-" }
@@ -354,7 +354,7 @@ internal class LetraEngine(
     // mão esquerda.
     //
     // A correção definitiva é retreinar com as amostras espelhadas — o que o
-    // exportar_onnx.py passou a fazer sozinho; os modelos treinados antes
+    // treinar_letras.py passou a fazer sozinho; os modelos treinados antes
     // disso continuam precisando deste remendo. Ele resolve na inferência: se
     // a orientação como veio não gerou
     // resposta, tentamos a espelhada. O espelho entra só quando o modelo já

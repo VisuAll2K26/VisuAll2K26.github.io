@@ -1,7 +1,8 @@
-"""Mede o modelo geral e os reforcos estaticos nas amostras extraidas.
+"""Mede o modelo geral e os reforcos estaticos nas amostras do banco de pontos.
 
 Somente diagnostico: nao treina nem altera modelos.
 """
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -10,7 +11,8 @@ import onnxruntime as ort
 
 COMPUTER = Path(__file__).resolve().parents[2]
 REPO = COMPUTER.parent
-DATASET = COMPUTER / "data" / "dataset_static.npz"
+sys.path.insert(0, str(COMPUTER / "treino" / "codigo"))
+from treinar_letras import Banco  # noqa: E402
 ASSETS = REPO / "mobile" / "app" / "src" / "main" / "assets" / "letras_estaticas"
 
 
@@ -25,8 +27,8 @@ def contagens(valores):
 
 
 def main():
-    dados = np.load(DATASET, allow_pickle=True)
-    x, y = dados["X"].astype(np.float32), dados["y"].astype(str)
+    banco = Banco()
+    x, y, _ = Banco.arrays(banco.Xp, banco.yp, banco.gp, 42)
     restritos = {
         linha.strip()
         for linha in (ASSETS / "reforcos_restritos.txt").read_text().splitlines()

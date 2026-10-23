@@ -6,7 +6,7 @@ package com.visuall.app.libras
 // vira uma delas pra ele. Por isso o portão de movimento é alto e o consenso
 // exige 3 janelas — é o app que precisa recusar o que não é letra.
 //
-// O modelo treinado com a classe NADA (exportar_onnx.py) recusa sozinho, e
+// O modelo treinado com a classe NADA (computer/treino/codigo/treinar_letras.py) recusa sozinho, e
 // os mesmos portões altos passam a cortar só gesto de verdade. Ler o
 // labels.txt deixa o app certo nos dois casos, sem ninguém lembrar de mudar
 // constante depois de retreinar: com NADA no labels.txt vale o ajuste

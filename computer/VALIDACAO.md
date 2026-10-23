@@ -109,4 +109,4 @@ situação atual, com valores que ninguém sabe mais se ajudam.
   mesmos valores, um por vez.
 - **Letras com movimento (H/K/X/Z) falhando, estáticas OK** → é o caminho
   do modelo dinâmico. Veja `LIMIAR_MOVIMENTO` e `MOVIMENTO_SUSTENTADO_MS`,
-  e confira quantos clipes dessas letras existem em `data/raw_videos/`.
+  e confira quantas gravações dessas letras existem em `treino/pontos/letras/`.

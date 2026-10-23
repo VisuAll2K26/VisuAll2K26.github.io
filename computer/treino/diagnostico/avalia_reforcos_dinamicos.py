@@ -1,8 +1,9 @@
-"""Mostra como os modelos dinamicos ativos competem nas amostras extraidas.
+"""Mostra como os modelos dinamicos ativos competem nas amostras do banco de pontos.
 
 Uso de diagnostico: nao treina nem grava nada. Serve para encontrar modelos
 individuais que roubam outras letras e portoes que impedem a classe correta.
 """
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +12,8 @@ import onnxruntime as ort
 
 COMPUTER = Path(__file__).resolve().parents[2]
 REPO = COMPUTER.parent
-DATASET = COMPUTER / "data" / "dataset_dynamic.npz"
+sys.path.insert(0, str(COMPUTER / "treino" / "codigo"))
+from treinar_letras import Banco  # noqa: E402
 ASSETS = REPO / "mobile" / "app" / "src" / "main" / "assets" / "letras_dinamicas"
 
 CONFIANCA_GERAL = 0.95
@@ -33,8 +35,8 @@ def resumo_contagens(valores):
 
 
 def main():
-    dados = np.load(DATASET, allow_pickle=True)
-    X, y = dados["X"].astype(np.float32), dados["y"].astype(str)
+    banco = Banco()
+    X, y, _ = Banco.arrays(banco.Xm, banco.ym, banco.gm, 420)
 
     labels = [linha.strip() for linha in (ASSETS / "geral" / "labels.txt").read_text().splitlines()
               if linha.strip()]

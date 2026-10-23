@@ -3,7 +3,7 @@
 O app roda prepararBitmap com postScale(-1,1) na camera frontal, por causa de um
 comentario que fala do dataset ANTIGO ("gravado com a webcam espelhada"). Mas o
 gravar.py salva o quadro CRU ("preview espelhado; o que e salvo e o quadro cru")
-e o treinar_corpo.py nao espelha nada.
+e o treinar_corpo.py (hoje codigo/treinar_palavras.py) nao espelha nada.
 
 Se isso importa, o efeito e sistematico: o MediaPipe rotula a mao por
 "Left"/"Right", e espelhar troca os rotulos -- as duas maos trocam de slot no
@@ -18,8 +18,10 @@ import numpy as np
 
 COMPUTER = Path(__file__).resolve().parents[2]
 REPO = COMPUTER.parent
-sys.path.insert(0, str(COMPUTER / "treino"))
-import treinar_corpo as tc  # noqa: E402
+sys.path.insert(0, str(COMPUTER / "treino" / "codigo"))
+import comum  # noqa: E402
+import pontos  # noqa: E402
+import treinar_palavras as tc  # noqa: E402
 import mediapipe as mp      # noqa: E402
 
 POR_CLASSE = 6
@@ -32,7 +34,7 @@ def extrai(caminho, pose, hands, espelhar):
         ok, imagem = cap.read()
         if not ok:
             break
-        imagem = cv2.resize(imagem, tc.TAMANHO_4_3)
+        imagem = cv2.resize(imagem, pontos.TAMANHO_CORPO)
         if espelhar:
             imagem = cv2.flip(imagem, 1)   # o que o app faz na camera frontal
         rgb = cv2.cvtColor(imagem, cv2.COLOR_BGR2RGB)
@@ -88,13 +90,13 @@ def main():
     hands = mp.solutions.hands.Hands(static_image_mode=False, max_num_hands=2,
                                      min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
-    gestos = sorted([p.name for p in tc.DATA.iterdir() if p.is_dir()])
+    gestos = sorted([p.name for p in (comum.GRAVACOES / "palavras").iterdir() if p.is_dir()])
     acerto = {"normal": 0, "espelhado": 0}
     total = 0
     virou = {}
 
     for gesto in gestos:
-        clipes = sorted(tc.DATA.glob(gesto + "/*.mp4"))[:POR_CLASSE]
+        clipes = sorted((comum.GRAVACOES / "palavras").glob(gesto + "/*.mp4"))[:POR_CLASSE]
         for c in clipes:
             qn = extrai(c, pose, hands, False)
             qe = extrai(c, pose, hands, True)

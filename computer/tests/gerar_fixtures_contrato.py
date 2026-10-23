@@ -2,7 +2,7 @@
 
 Esse arquivo e o "contrato": um conjunto congelado de entradas e saidas que
 as DUAS implementacoes da mesma matematica -- a do treino (Python,
-computer/treino/) e a do app (Kotlin, LibrasMath.kt) -- tem que reproduzir
+computer/treino/codigo/) e a do app (Kotlin, LibrasMath.kt) -- tem que reproduzir
 identicamente.
 
 So rode isto de novo se voce mudou a matematica DE PROPOSITO nos dois lados.
@@ -19,10 +19,10 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "treino"))
+sys.path.insert(0, str(ROOT / "treino" / "codigo"))
 
-import treinar_corpo as corpo  # noqa: E402
-from extrair_negativos import normalize_landmarks  # noqa: E402
+import treinar_palavras as corpo  # noqa: E402
+from pontos import normalize_landmarks  # noqa: E402
 
 SAIDA = ROOT / "tests" / "fixtures" / "landmark_contract.json"
 N_POSE, N_HAND = 33, 21

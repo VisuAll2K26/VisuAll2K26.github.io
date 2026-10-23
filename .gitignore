@@ -22,9 +22,14 @@ Thumbs.db
 .vscode/
 mobile/local.properties
 
-# Gravacoes e backups do treino local (nao vao pro git)
+# Treino: os videos/fotos e as copias de modelo ficam so no PC que gravou.
+# O banco de pontos (computer/treino/pontos) VAI pro git: e ele que deixa
+# outro computador retreinar sem os videos.
 computer/data/
+computer/treino/gravacoes/
 computer/treino/modelos_anteriores/
+!computer/treino/pontos/**/*.npz
+computer/treino/pontos/**/*.parcial.npz
 
 # APKs baixados do CI (artefato, nao fonte)
 apk_ci_download/

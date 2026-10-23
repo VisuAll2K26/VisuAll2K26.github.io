@@ -4,19 +4,23 @@ Scripts que respondem perguntas do tipo "por que o app erra isto?" com números,
 em vez de palpite. Cada um mede uma coisa e imprime o resultado. **Nenhum
 altera modelo ou app.**
 
-Rode de dentro de `computer/`:
+Rode de dentro de `computer/`, com o ambiente que os `.bat` do treino criam:
 
 ```powershell
-python treino\diagnostico\<script>.py
+.venv\Scripts\python treino\diagnostico\<script>.py
 ```
 
-Os de corpo leem `cache_corpo.npz`, que guarda os pontos de cada vídeo já
-extraídos (o cache **não** vai para o git). Na primeira vez, ou depois de
-gravar vídeos novos, gere o cache:
+Os de corpo leem `cache_corpo.npz`: a sequência de cada gravação de palavra,
+já normalizada. Ele sai do banco de pontos (`../pontos/`), então leva
+segundos e funciona em qualquer computador, mesmo sem os vídeos. Na primeira
+vez, ou depois de gravar mais, gere de novo:
 
 ```powershell
-python treino\diagnostico\extrai_cache.py
+.venv\Scripts\python treino\diagnostico\extrai_cache.py
 ```
+
+Os `simula_*.py` passam os **vídeos** pelo detector do próprio app, então só
+medem as gravações que estão neste computador (`../gravacoes/`).
 
 ## Os scripts
 
@@ -55,7 +59,7 @@ python treino\diagnostico\extrai_cache.py
 | Script | Pergunta |
 |---|---|
 | `experimento.py`, `experimento2.py` | Que configuração de treino acerta mais, em avaliação honesta? |
-| `extrai_cache.py` | (utilitário) Gera o `cache_corpo.npz` usado pelos outros. |
+| `extrai_cache.py` | (utilitário) Gera o `cache_corpo.npz` usado pelos outros, a partir do banco de pontos. |
 
 ## Por que existe
 

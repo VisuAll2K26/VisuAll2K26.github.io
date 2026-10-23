@@ -1,4 +1,4 @@
-"""Testes da verificacao pos-export (valida(), em exportar_onnx e treinar_corpo).
+"""Testes da verificacao pos-export (valida(), em treinar_letras e treinar_palavras).
 
 O ponto e garantir que a verificacao REJEITA modelo errado -- uma checagem
 que so aprova nao protege de nada. Cada teste aqui exporta um modelo de
@@ -9,7 +9,7 @@ entrada unica chamada "landmarks_input", forma [N, features], e a segunda
 saida contendo as probabilidades.
 
 NAO ha skip quando falta o onnxruntime, de proposito. O valida() de
-exportar_onnx devolve False tanto para modelo errado quanto para
+treinar_letras devolve False tanto para modelo errado quanto para
 "onnxruntime nao instalado", entao um skip (ou so testes negativos) deixaria
 a suite passar verde sem ter verificado nada. Em vez disso,
 test_modelo_correto_passa exige True: sem o onnxruntime ele falha e diz o
@@ -24,10 +24,10 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "treino"))
+sys.path.insert(0, str(ROOT / "treino" / "codigo"))
 
-import exportar_onnx  # noqa: E402
-import treinar_corpo  # noqa: E402
+import treinar_letras  # noqa: E402
+import treinar_palavras  # noqa: E402
 
 
 def _mlp_treinado(features=42):
@@ -68,7 +68,7 @@ class TestVerificacaoOnnx(unittest.TestCase):
     def test_modelo_correto_passa(self):
         caminho = self._exportar("ok.onnx")
         self.assertTrue(
-            exportar_onnx.valida(caminho, 42, 2),
+            treinar_letras.valida(caminho, 42, 2),
             "modelo dentro do contrato foi rejeitado -- se a saida acima disser "
             "'onnxruntime nao instalado', instale-o (esta no requirements.txt): "
             "sem ele esta suite nao verifica nada.",
@@ -78,13 +78,13 @@ class TestVerificacaoOnnx(unittest.TestCase):
         # O app roda a sessao com mapOf("landmarks_input" to tensor); com outro
         # nome ele nao consegue nem alimentar o modelo.
         caminho = self._exportar("nome_errado.onnx", input_name="entrada")
-        self.assertFalse(exportar_onnx.valida(caminho, 42, 2))
+        self.assertFalse(treinar_letras.valida(caminho, 42, 2))
 
     def test_rejeita_quantidade_de_features_errada(self):
         # Caso classico: exportar o modelo estatico (42) no lugar do dinamico
         # (420), ou treinar com um numero de features e exportar com outro.
         caminho = self._exportar("ok.onnx")
-        self.assertFalse(exportar_onnx.valida(caminho, 420, 2))
+        self.assertFalse(treinar_letras.valida(caminho, 420, 2))
 
     def test_rejeita_export_com_zipmap(self):
         # Com zipmap a segunda saida vira um dicionario em vez do vetor de
@@ -92,7 +92,7 @@ class TestVerificacaoOnnx(unittest.TestCase):
         # pega isso RODANDO o modelo: as probabilidades saem com shape (1,) em
         # vez de (1, n_classes).
         caminho = self._exportar("zipmap.onnx", zipmap=True)
-        self.assertFalse(exportar_onnx.valida(caminho, 42, 2))
+        self.assertFalse(treinar_letras.valida(caminho, 42, 2))
 
 
 class TestVerificacaoTflite(unittest.TestCase):
@@ -104,7 +104,7 @@ class TestVerificacaoTflite(unittest.TestCase):
         # Modelo com a janela errada (20 em vez de 30): o app faz
         # resizeInput(0, [1, 30, 225]) e falharia no celular.
         modelo = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=(20, treinar_corpo.N_FEATURES)),
+            tf.keras.layers.Input(shape=(20, treinar_palavras.N_FEATURES)),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(6, activation="softmax"),
         ])
@@ -116,7 +116,7 @@ class TestVerificacaoTflite(unittest.TestCase):
         # allocate_tensors() estoura antes de chegar em qualquer return: o
         # reshape interno nao fecha (6750 != 4500).
         with self.assertRaises(Exception):
-            treinar_corpo.valida(caminho, 6)
+            treinar_palavras.valida(caminho, 6)
 
 
 if __name__ == "__main__":

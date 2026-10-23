@@ -1,6 +1,6 @@
 """O que o app responde em cada foto de letra parada -- de perto e de longe?
 
-Passa as fotos de computer/data/raw_images pelo detector do app
+Passa as fotos de computer/treino/gravacoes/letras pelo detector do app
 (hand_landmarker.task) e pela mesma decisao do LetraEngine
 (classificarEstaticoOrientado: individuais prioritarios -> modelo geral ->
 reforcos restritos, com a regra de concordancia do U, e o espelho quando a
@@ -31,7 +31,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 COMPUTER = Path(__file__).resolve().parents[2]
 REPO = COMPUTER.parent
-FOTOS = COMPUTER / "data" / "raw_images"
+FOTOS = COMPUTER / "treino" / "gravacoes" / "letras"
 APP = REPO / "mobile" / "app" / "src" / "main"
 ASSETS = APP / "assets"
 ESTATICAS = ASSETS / "letras_estaticas"

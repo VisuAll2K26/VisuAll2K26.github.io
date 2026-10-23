@@ -8,12 +8,12 @@ Se este teste falhar depois de voce mexer na matematica, NAO regere as
 fixtures: ou a mudanca foi sem querer (corrija o codigo), ou foi de proposito
 e o lado Kotlin precisa acompanhar antes de o gabarito ser refeito.
 
-As tres funcoes cobertas vivem em computer/treino/ porque cada uma nasceu onde
-era usada; o que as une e serem gemeas de LibrasMath.kt:
+As tres funcoes cobertas vivem em computer/treino/codigo/, onde sao usadas;
+o que as une e serem gemeas de LibrasMath.kt:
 
-    normalize_landmarks  (extrair_negativos.py) <-> LibrasMath.normalizeLandmarks
-    normaliza_corpo      (treinar_corpo.py)     <-> LibrasMath.normalizeBodyFrame
-    reamostra            (treinar_corpo.py)     <-> LibrasMath.resample
+    normalize_landmarks  (pontos.py)            <-> LibrasMath.normalizeLandmarks
+    normaliza_corpo      (treinar_palavras.py)  <-> LibrasMath.normalizeBodyFrame
+    reamostra            (treinar_palavras.py)  <-> LibrasMath.resample
 """
 import json
 import sys
@@ -24,10 +24,10 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 REPO = ROOT.parent
-sys.path.insert(0, str(ROOT / "treino"))
+sys.path.insert(0, str(ROOT / "treino" / "codigo"))
 
-import treinar_corpo as corpo  # noqa: E402
-from extrair_negativos import normalize_landmarks  # noqa: E402
+import treinar_palavras as corpo  # noqa: E402
+from pontos import normalize_landmarks  # noqa: E402
 
 FIXTURES = json.loads(
     (ROOT / "tests" / "fixtures" / "landmark_contract.json").read_text(encoding="utf-8")

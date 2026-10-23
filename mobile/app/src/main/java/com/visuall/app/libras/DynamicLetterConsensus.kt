@@ -13,10 +13,10 @@ package com.visuall.app.libras
 // de MOVIMENTO_SUSTENTADO_MS e um quadro de sorte no fim virava letra.
 //
 // Agora a letra só sai se várias janelas DIFERENTES, seguidas, apontarem pra
-// ela por um tempo mínimo — o que é o normal num gesto real. Medido nos
-// vídeos de computer/data (dataset_dynamic.npz, ~15 quadros/s): H, J e Z
-// reais concordam por 8+ janelas seguidas na maioria das gravações, bem
-// acima do exigido aqui.
+// ela por um tempo mínimo — o que é o normal num gesto real. Medido com
+// computer/treino/diagnostico/simula_dinamicas.py e os modelos de antes do
+// NADA: trocas entre letras paradas virando letra caíram de 96/300 para
+// 3/300, e as letras reais de 40/95 para 28/95 (ver CHANGELOG).
 //
 // O instante entra como parâmetro, igual ao MovementGate e ao
 // LetterCommitGate. Ver DynamicLetterConsensusTest.
