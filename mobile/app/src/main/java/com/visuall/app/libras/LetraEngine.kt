@@ -7,9 +7,9 @@ import android.content.Context
 import android.util.Log
 import java.nio.FloatBuffer
 
-// Reconhecimento de letra do alfabeto (MLP estático + dinâmico) e calibração
+// Reconhecimento de letra do alfabeto (MLP estático + dinâmico)
 // pessoal — extraído do LibrasAnalyzer pra isolar esse conjunto de
-// modelos/estado (sessões ONNX, janela deslizante, calibração) do resto do
+// modelos/estado (sessões ONNX, janela deslizante) do resto do
 // pipeline (corpo, marcador de rosto), que não têm nada a ver com isso.
 internal class LetraEngine(
     context: Context,
@@ -40,7 +40,7 @@ internal class LetraEngine(
     // O modelo dinâmico pode ter, além das letras, a classe NADA: "a mão se
     // mexeu, mas não fez letra nenhuma" (ver treinar_letras.py). Ela continua
     // em labelsDinamico, porque a ordem dali é a ordem das saídas do modelo,
-    // mas não é letra — fica fora de tudo que a tela mostra ou calibra.
+    // mas não é letra — fica fora de tudo que a tela mostra.
     private val letrasDinamicas = labelsDinamico.filter { LetterDecision.normalizarSaida(it) != "-" }
 
     // Alfabeto completo (estáticas + dinâmicas), em ordem alfabética, pra UI
@@ -69,16 +69,12 @@ internal class LetraEngine(
             .filter { it.isNotBlank() }
             .toSet()
     }.getOrDefault(emptySet())
-    private val trainingStore = CalibrationTrainingStore(context, labelsEstatico, letrasDinamicas)
 
     private val bufferLm          = ArrayDeque<FloatArray>()
     private val bufferPontos      = ArrayDeque<FloatArray>()
     // Instante de cada quadro dos buffers acima, na mesma ordem: o movimento é
     // medido numa janela de tempo (MOVIMENTO_JANELA_MS), não de quadros.
     private val bufferTempos      = ArrayDeque<Long>()
-    private val calibrationLock   = Any()
-    private val calibrationBuffer = ArrayList<FloatArray>()
-    @Volatile private var calibrationTarget: String? = null
 
     // Limiar de movimento e exigência do consenso, conforme o modelo dinâmico
     // tenha ou não a classe NADA — ver AjusteDinamico.
@@ -171,14 +167,13 @@ internal class LetraEngine(
     }
 
     // Pipeline completo de um frame com mão detectada: normaliza, alimenta a
-    // calibração em andamento (se houver), atualiza a janela deslizante,
-    // classifica (estático, dinâmico ou calibração pessoal) e emite o
+    // atualiza a janela deslizante,
+    // classifica (estático ou dinâmico) e emite o
     // feedback textual correspondente.
     fun process(pontos: List<Pair<Float, Float>>): Prediction {
         val agora = System.currentTimeMillis()
         val pontosCrus = pontosParaArray(pontos)
         val dados = LibrasMath.normalizeLandmarks(pontos)
-        captureCalibrationFrame(dados)
         bufferPontos.addLast(pontosCrus)
         bufferLm.addLast(dados)
         bufferTempos.addLast(agora)
@@ -192,26 +187,7 @@ internal class LetraEngine(
         return predicao
     }
 
-    private fun captureCalibrationFrame(dados: FloatArray) {
-        if (calibrationTarget == null) return
-        synchronized(calibrationLock) {
-            if (calibrationTarget == null) return
-            if (calibrationBuffer.size >= LibrasAnalyzer.CALIBRATION_MAX_FRAMES) {
-                calibrationBuffer.removeAt(0)
-            }
-            calibrationBuffer.add(dados.copyOf())
-            val letra = calibrationTarget.orEmpty()
-            val total = calibrationBuffer.size
-            onFeedback(
-                "GRAVANDO $letra  $total/${LibrasAnalyzer.CALIBRATION_TARGET_FRAMES}",
-                LibrasAnalyzer.FEEDBACK_BOM
-            )
-        }
-    }
-
     private fun emitirFeedback(prediction: Prediction, movimento: Float) {
-        if (calibrationTarget != null) return
-
         val mensagem = when {
             // Sinal firme nao tem texto: a moldura fica verde, e o chip mostra a
             // letra e a confianca. "SINAL ESTAVEL" repetia o que o verde ja diz,
@@ -228,28 +204,6 @@ internal class LetraEngine(
             else -> LibrasAnalyzer.FEEDBACK_ALERTA
         }
         onFeedback(mensagem, nivel)
-    }
-
-    private fun aplicarCalibracaoPessoal(dados: FloatArray, base: Prediction): Prediction {
-        // Só usamos a calibração pessoal quando o modelo não reconheceu nada,
-        // para nunca sobrescrever uma decisão confiante do modelo por um
-        // vizinho-mais-próximo que pode estar errado.
-        if (base.letra != "-") return base
-        val calibrado = melhorCalibracao(dados)
-        return if (calibrado.letra != "-") calibrado else base
-    }
-
-    private fun melhorCalibracao(dados: FloatArray): Prediction {
-        val match = synchronized(calibrationLock) {
-            trainingStore.bestStaticMatch(
-                candidates = listOf(dados, LibrasMath.mirrorLandmarks(dados)),
-                maxDistance = LibrasAnalyzer.CALIBRATION_MATCH_LIMIT
-            )
-        } ?: return Prediction("-", 0f, "calibrado")
-
-        val score = (1f - match.distance / LibrasAnalyzer.CALIBRATION_MATCH_LIMIT).coerceIn(0f, 1f)
-        val confianca = (0.86f + score * 0.13f).coerceAtMost(0.99f)
-        return Prediction(match.letter, confianca, "calibrado")
     }
 
     private fun pontosParaArray(pontos: List<Pair<Float, Float>>): FloatArray {
@@ -356,9 +310,7 @@ internal class LetraEngine(
             }
         }
         if (poseDeRepouso.travada(dados)) return Prediction("-", 0f, "pos_gesto")
-        // Calibração pessoal entra apenas como reforço quando o modelo não
-        // reconheceu nada (ver aplicarCalibracaoPessoal).
-        return aplicarCalibracaoPessoal(dados, classificarEstatico(dados))
+        return classificarEstatico(dados)
     }
 
     // Uma letra do alfabeto é a MESMA forma com qualquer das duas mãos —
@@ -375,7 +327,6 @@ internal class LetraEngine(
     // resposta, tentamos a espelhada. O espelho entra só quando o modelo já
     // disse "não sei", e ainda precisa passar pelos MESMOS portões de
     // confiança e margem — então não afrouxa nada, só cobre o lado que faltava.
-    // (É o mesmo recurso que a calibração pessoal já usava em melhorCalibracao.)
     private fun comFallbackEspelhado(
         entrada: FloatArray,
         classificar: (FloatArray) -> Prediction
@@ -603,90 +554,7 @@ internal class LetraEngine(
         )
     }
 
-    // ── Calibração pessoal (API pública usada pela UI) ─────────────────────
-    fun startCalibration(letra: String) {
-        synchronized(calibrationLock) {
-            calibrationTarget = letra.uppercase()
-            calibrationBuffer.clear()
-        }
-        onFeedback("CALIBRANDO ${letra.uppercase()}: SEGURE A MAO", LibrasAnalyzer.FEEDBACK_NEUTRO)
-    }
-
-    fun finishCalibration(): Boolean {
-        synchronized(calibrationLock) {
-            val letra = calibrationTarget ?: return false
-            if (calibrationBuffer.size < LibrasAnalyzer.CALIBRATION_MIN_FRAMES) {
-                onFeedback("POUCAS AMOSTRAS PARA $letra", LibrasAnalyzer.FEEDBACK_ALERTA)
-                return false
-            }
-
-            val frames = calibrationBuffer.map { it.copyOf() }
-            if (letra in letrasDinamicas) {
-                val sequencias = trainingStore.saveDynamicSamples(letra, frames)
-                if (sequencias == 0) {
-                    onFeedback("MOVIMENTE MAIS PARA $letra", LibrasAnalyzer.FEEDBACK_ALERTA)
-                    return false
-                }
-                trainingStore.incrementSampleCount(letra, sequencias)
-            } else {
-                val referencia = LetterDecision.media(
-                    frames, LibrasAnalyzer.FEATURES_ESTATICO
-                )
-                trainingStore.saveStaticCalibration(letra, referencia)
-                trainingStore.saveStaticSamples(letra, frames)
-                trainingStore.incrementSampleCount(letra, frames.size)
-            }
-
-            calibrationTarget = null
-            calibrationBuffer.clear()
-            onFeedback("$letra SALVA PARA TREINO", LibrasAnalyzer.FEEDBACK_BOM)
-            return true
-        }
-    }
-
-    fun cancelCalibration() {
-        synchronized(calibrationLock) {
-            calibrationTarget = null
-            calibrationBuffer.clear()
-        }
-    }
-
-    fun getCalibrationCount(): Int {
-        synchronized(calibrationLock) {
-            return trainingStore.calibrationCount()
-        }
-    }
-
-    fun getCalibrationFrameCount(): Int {
-        synchronized(calibrationLock) {
-            return calibrationBuffer.size
-        }
-    }
-
-    fun getTrainingSampleCount(letra: String? = null): Int {
-        if (letra != null) {
-            return trainingStore.sampleCount(letra)
-        }
-        return trainingStore.totalSampleCount()
-    }
-
-    fun getTrainingDatasetPath(): String = trainingStore.staticDatasetPath()
-
-    fun getDynamicTrainingDatasetPath(): String = trainingStore.dynamicDatasetPath()
-
-    fun clearTrainingData() {
-        synchronized(calibrationLock) {
-            calibrationTarget = null
-            calibrationBuffer.clear()
-            trainingStore.clear()
-        }
-        onFeedback("TREINO ZERADO", LibrasAnalyzer.FEEDBACK_NEUTRO)
-    }
-
     fun close() {
-        // Antes das sessões: espera terminar de gravar as amostras de
-        // calibração, que agora vão pra disco em segundo plano.
-        trainingStore.close()
         modelosEstaticosIndividuais.forEach { modelo ->
             runCatching { modelo.session.close() }
                 .onFailure { Log.w("LetraEngine", "Falha ao fechar modelo individual ${modelo.label}", it) }

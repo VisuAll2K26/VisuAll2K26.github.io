@@ -178,7 +178,7 @@ Por que cada limiar do app tem o valor que tem: [CHANGELOG.md](CHANGELOG.md).
 | Assunto | Onde |
 |---|---|
 | Compilar e entender o app | [mobile/README.md](mobile/README.md) |
-| Formato dos modelos que o app lê | [mobile/TREINAMENTO_MODELOS.md](mobile/TREINAMENTO_MODELOS.md) |
+| Formato dos modelos que o app lê | [computer/treino/FORMATO_DOS_MODELOS.md](computer/treino/FORMATO_DOS_MODELOS.md) |
 | Gravar e treinar letras e palavras | [computer/treino/README.md](computer/treino/README.md) |
 | Onde o retreino parou e o que falta gravar | [computer/treino/README.md](computer/treino/README.md#onde-o-retreino-parou-outubro-de-2026) |
 | Testar no celular de verdade | [computer/VALIDACAO.md](computer/VALIDACAO.md) |

@@ -20,7 +20,7 @@ import java.util.Locale
 
 // Orquestrador do reconhecimento Libras: cada frame da câmera passa por
 // aqui, mas a inteligência de cada modo vive num módulo dedicado —
-// LetraEngine (alfabeto estático/dinâmico + calibração), BodyGestureEngine
+// LetraEngine (alfabeto estático/dinâmico), BodyGestureEngine
 // (sinais de corpo) e FaceMarkerEngine (marcador de sobrancelha/pergunta).
 // Esta classe cuida só do que é DE FATO compartilhado entre os modos: captura
 // de câmera, detecção de mão (handLandmarker), e o estado da frase/gesto de
@@ -44,7 +44,7 @@ class LibrasAnalyzer(
     private val onFaceLandmarks: (
         pontos: FloatArray?, frameAspect: Float
     ) -> Unit = { _, _ -> },
-    // Diagnostico da calibracao e da maquina de estados facial. Tambem fica
+    // Diagnostico da maquina de estados facial. Tambem fica
     // restrito ao modo corpo e nao persiste nenhum dado biometrico.
     private val onFaceDiagnostic: (diagnostic: BrowDetection) -> Unit = { },
     // Interrogacao confirmada pelo gesto facial no modo corpo. `true` e um
@@ -317,17 +317,9 @@ class LibrasAnalyzer(
         const val BODY_JANELA_CONTINUA   = 10
         const val BODY_VOTOS_CONTINUO    = 5
         const val BODY_CONFIANCA_CONTINUA = 0.95f
-        const val CALIBRATION_MIN_FRAMES = 8
-        const val CALIBRATION_MAX_FRAMES = 45
-        const val CALIBRATION_TARGET_FRAMES = 24
-        const val TRAINING_BASIC_TARGET_SAMPLES = CALIBRATION_TARGET_FRAMES
-        const val TRAINING_STRONG_TARGET_SAMPLES = 96
-        const val CALIBRATION_MATCH_LIMIT = 0.18f
         const val FEEDBACK_NEUTRO = 0
         const val FEEDBACK_BOM = 1
         const val FEEDBACK_ALERTA = 2
-        const val TRAINING_FILE_NAME = "visuall_libras_phone_dataset.csv"
-        const val DYNAMIC_TRAINING_FILE_NAME = "visuall_libras_dynamic_phone_dataset.csv"
         val LETRAS_REPETICAO_AUTO        = setOf("S", "R")
 
         // A sobrancelha não muda de estado tão rápido quanto uma letra: rodar
@@ -1020,20 +1012,9 @@ class LibrasAnalyzer(
         }
     }
 
-    // ── Calibração pessoal (delegada ao LetraEngine) ───────────────────────
-    fun startCalibration(letra: String) = letraEngine.startCalibration(letra)
-    fun finishCalibration(): Boolean = letraEngine.finishCalibration()
-    fun cancelCalibration() = letraEngine.cancelCalibration()
-    fun getCalibrationCount(): Int = letraEngine.getCalibrationCount()
-    fun getCalibrationFrameCount(): Int = letraEngine.getCalibrationFrameCount()
-    fun getTrainingSampleCount(letra: String? = null): Int = letraEngine.getTrainingSampleCount(letra)
-    fun getTrainingDatasetPath(): String = letraEngine.getTrainingDatasetPath()
-    fun getDynamicTrainingDatasetPath(): String = letraEngine.getDynamicTrainingDatasetPath()
-    fun clearTrainingData() = letraEngine.clearTrainingData()
-
     // Vêm dos labels.txt que acompanham os modelos — ver comentário em
-    // LetraEngine. A UI de calibração usa estes em vez de uma lista própria,
-    // pra não haver duas versões do alfabeto podendo divergir.
+    // LetraEngine. Quem precisar do alfabeto usa estes em vez de uma lista
+    // própria, pra não haver duas versões podendo divergir.
     fun labelsAlfabeto(): List<String> = letraEngine.labelsAlfabeto
     fun labelsDinamicas(): Set<String> = letraEngine.labelsDinamicasSet
 

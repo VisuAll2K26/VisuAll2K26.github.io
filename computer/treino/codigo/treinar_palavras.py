@@ -195,6 +195,7 @@ def amostras_da_gravacao(quadros, recortes):
 # copias com uma mao so: a presenca da outra mao deixa de dizer qual e a palavra.
 FATIA_ESQ = slice(N_POSE * 3, (N_POSE + N_MAO) * 3)
 FATIA_DIR = slice((N_POSE + N_MAO) * 3, N_FEATURES)
+JANELAS_POR_BLOCO = 15     # janelas coletadas pelo app que formam um "grupo" de teste
 UMA_MAO_ATE = 0.45         # com as duas maos a vista em menos disto dos quadros = sinal de uma mao
 VARIANTES_POR_GRAVACAO = 2
 
@@ -246,8 +247,14 @@ def monta_dataset(recortes):
     """X [N, 30, 225], y [N], grupo [N] (de que gravacao saiu), variante [N]
     (True nas copias com a outra mao a mais/a menos), quantas gravacoes cada
     palavra tem e quais palavras sao de uma mao."""
-    lidas, gravacoes, curtas = [], {}, []
+    lidas, gravacoes, curtas, do_app = [], {}, [], []
     for rotulo, ident, dados in pontos.carrega("palavras"):
+        if dados["tipo"] == "janelas":
+            # Coletadas pelo proprio app (coletar.py palavras): ja sao as janelas
+            # de 30 quadros, normalizadas, como entram no modelo.
+            do_app.append((rotulo, ident, np.asarray(dados["janelas"], dtype=np.float32)))
+            gravacoes[rotulo] = gravacoes.get(rotulo, 0) + 1
+            continue
         quadros = quadros_da_gravacao(dados)
         if len(quadros) < QUADROS_MINIMOS:
             curtas.append("%s/%s" % (rotulo, ident))
@@ -290,6 +297,16 @@ def monta_dataset(recortes):
                 v = com_a_mao_do_doador(quadros, doadores[int(sorteio.integers(len(doadores)))])
                 if v is not None:
                     junta(rotulo, grupo, list(v), True)
+    for rotulo, ident, janelas in do_app:
+        janelas = janelas.reshape(-1, JANELA, N_FEATURES)
+        for i in range(0, len(janelas), JANELAS_POR_BLOCO):
+            bloco = janelas[i:i + JANELAS_POR_BLOCO]
+            X.extend(bloco)
+            y.extend([rotulo] * len(bloco))
+            # Em blocos: uma coleta tem centenas de janelas quase iguais e, num
+            # grupo so, o teste cairia inteiro de um lado.
+            grupos.extend(["%s/%s/%d" % (rotulo, ident, i // JANELAS_POR_BLOCO)] * len(bloco))
+            variante.extend([False] * len(bloco))
     return (np.array(X, dtype=np.float32).reshape(-1, JANELA, N_FEATURES),
             np.array(y, dtype=str), np.array(grupos, dtype=str),
             np.array(variante, dtype=bool), gravacoes, uma_mao)

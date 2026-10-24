@@ -123,6 +123,40 @@ def importa_arquivo(caminho):
     return np.array(tempos), np.array(janelas, dtype=np.float32).reshape(-1, JANELA)
 
 
+def salva_palavra(rotulo, janelas):
+    """Janelas de 30 quadros (225 numeros cada) que o app entregou ao modelo de palavras."""
+    pasta = comum.PONTOS / "palavras" / rotulo
+    pasta.mkdir(parents=True, exist_ok=True)
+    ident = "app_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+    destino = pasta / (ident + ".npz")
+    np.savez_compressed(destino, versao=pontos.VERSAO, tipo="janelas", origem=np.array(["app"]),
+                        janelas=janelas.astype(np.float16).reshape(len(janelas), 30, 225))
+    return destino
+
+
+def importa_palavras(caminho, trechos):
+    """Usa um diag_corpo.txt puxado do celular. `trechos`: {PALAVRA: [(ini_s, fim_s), ...]}
+    (segundos desde a primeira janela). Corta 1 s de cada ponta."""
+    tempos, janelas = [], []
+    for linha in Path(caminho).read_text(encoding="utf-8").splitlines():
+        partes = linha.strip().split("|")
+        if len(partes) != 3:
+            continue
+        v = [float(x) for x in partes[2].split(",") if x]
+        if len(v) == 30 * 225:
+            tempos.append(int(partes[0]))
+            janelas.append(v)
+    tempos, janelas = np.array(tempos), np.array(janelas, dtype=np.float32)
+    segundos = (tempos - tempos[0]) / 1000.0
+    saida = {}
+    for palavra, faixas in trechos.items():
+        sel = np.zeros(len(tempos), bool)
+        for ini, fim in faixas:
+            sel |= (segundos >= ini + APARA_S) & (segundos <= fim - APARA_S)
+        saida[palavra] = janelas[sel]
+    return saida
+
+
 def letras_da_coleta():
     return sorted(comum.letras_dinamicas()) + [comum.NADA]
 

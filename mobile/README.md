@@ -69,7 +69,6 @@ mobile/
 │       │   └── res/                 telas, textos, ícones
 │       └── test/                    testes que rodam no PC, sem celular
 ├── tools/                           atalhos de desenvolvimento (emulador)
-└── TREINAMENTO_MODELOS.md           o formato dos modelos que o app lê
 ```
 
 ### `libras/`, o reconhecimento

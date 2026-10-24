@@ -13,6 +13,24 @@ Formato: **Constante(s)** — valor atual — decisão e por quê — status.
 
 ## Não lançado
 
+- **Treino só no computador: saiu a calibração/treino de dentro do app** —
+  o painel "CALIBRAR" (que só existia no layout de paisagem e nenhum código
+  abria), `CalibrationTrainingStore`, `TrainingProgressCalculator` e a
+  calibração pessoal por vizinho mais próximo do `LetraEngine` foram removidos.
+  O app só reconhece; quem aprende é o `computer/treino`. O arquivo
+  `mobile/TREINAMENTO_MODELOS.md` virou `computer/treino/FORMATO_DOS_MODELOS.md`
+  (e deixou de ensinar a calibrar no celular). A coleta de janelas para o
+  treino (`coletando`/`coletando_corpo`, via adb, só em build de depuração)
+  continua: ela alimenta o treino do computador, não treina nada no app.
+
+- **Palavras: treino com as janelas do próprio app** — relato: "COMPUTADOR sai
+  com dificuldade e CONVERSAR com extrema facilidade". No celular o modelo
+  acertava a palavra, mas só 40% das janelas do COMPUTADOR passavam de 0,85
+  (mínimo para sair), contra 99–100% das outras. `coletar.py` ganhou
+  `salva_palavra`/`importa_palavras`; o modelo foi retreinado com as janelas do
+  app (COMPUTADOR 100% e CONVERSAR 100% em gravações não vistas; geral 98%).
+  Status: **validar no aparelho; falta coletar o NEUTRO pelo app**.
+
 - **Letra nova não sai sozinha depois de uma letra com movimento nem de uma
   limpeza** (`PoseDeRepouso`, `POSE_NOVA_DISTANCIA`=0.6,
   `POS_LIMPEZA_ESPERA_MS`=1500) — relato: "depois do Z, parado, entrou V sem eu

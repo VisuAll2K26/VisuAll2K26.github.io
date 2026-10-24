@@ -27,7 +27,7 @@ O que acontece, nesta ordem:
 Antes de substituir qualquer coisa, uma copia do que estava no app vai pra
 computer/treino/modelos_anteriores/ ("Desfazer ultimo treino.bat" devolve).
 
-CONTRATO com o app (LetraEngine.kt e mobile/TREINAMENTO_MODELOS.md):
+CONTRATO com o app (LetraEngine.kt e computer/treino/FORMATO_DOS_MODELOS.md):
   1. nome da entrada .... "landmarks_input"
   2. shape da entrada ... [1, 42] (parada) / [1, 420] (movimento), float32
   3. saida .............. zipmap=False: out[0]=rotulo, out[1]=probabilidades

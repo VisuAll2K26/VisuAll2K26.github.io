@@ -505,11 +505,33 @@ internal class BodyGestureEngine(private val context: Context) {
         interpreter.run(input, output)
         registrarInferencia(System.nanoTime() - inicio, agora)
         val probs = output[0]
+        coletar(input[0], labels, probs)
         val idx = probs.indices.maxByOrNull { probs[it] } ?: return null
         val second = probs.indices
             .filter { it != idx }
             .maxOfOrNull { probs[it] } ?: 0f
         return Prediction(labels[idx], probs[idx], "corpo", probs[idx] - second)
+    }
+
+    // Coleta pro treino (computer/treino/codigo/coletar.py): so grava quando o
+    // computador cria o arquivo "coletando_corpo" na pasta do app (adb, build de
+    // depuracao). Guarda a janela de 30 quadros exatamente como entrou no modelo.
+    private val coletaCorpoLigada = java.io.File(context.filesDir, "coletando_corpo")
+    private val coletaCorpoArquivo = java.io.File(context.filesDir, "diag_corpo.txt")
+
+    private fun coletar(janela: Array<FloatArray>, labels: List<String>, probs: FloatArray) {
+        if (!coletaCorpoLigada.exists() || coletaCorpoArquivo.length() > 40_000_000L) return
+        runCatching {
+            val sb = StringBuilder()
+            sb.append(System.currentTimeMillis()).append('|')
+            labels.forEachIndexed { i, l ->
+                sb.append(l).append(':').append("%.2f".format(java.util.Locale.US, probs[i])).append(' ')
+            }
+            sb.append('|')
+            janela.forEach { quadro -> quadro.forEach { sb.append("%.4f".format(java.util.Locale.US, it)).append(',') } }
+            sb.append('\n')
+            coletaCorpoArquivo.appendText(sb.toString())
+        }
     }
 
     private fun registrarInferencia(nanos: Long, agora: Long) {
