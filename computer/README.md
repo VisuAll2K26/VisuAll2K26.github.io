@@ -51,6 +51,7 @@ pip install -r requirements.txt
 treino\1 - Adicionar palavra nova.bat    ensinar uma palavra nova
 treino\2 - Retreinar palavras.bat        melhorar as palavras que o app já sabe
 treino\3 - Retreinar letras.bat          melhorar as letras
+treino\4 - Coletar letra com movimento pelo app.bat   letra com movimento errada no celular
 ```
 
 Cada um abre a câmera para gravar e, ao fechar, treina. O treino grava o

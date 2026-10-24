@@ -70,6 +70,17 @@ class LibrasMathTest {
     }
 
     @Test
+    fun `limpar pede as duas maos abertas`() {
+        val aberta = maoComDedos(esticados = true)
+        val fechada = maoComDedos(esticados = false)
+        assertTrue(LibrasMath.duasMaosEstendidas(listOf(aberta, aberta)))
+        // Uma mao so (o caso do C segurado por 3 s) nao limpa.
+        assertFalse(LibrasMath.duasMaosEstendidas(listOf(aberta)))
+        assertFalse(LibrasMath.duasMaosEstendidas(listOf(aberta, fechada)))
+        assertFalse(LibrasMath.duasMaosEstendidas(emptyList()))
+    }
+
+    @Test
     fun `detectarDedosEsticados rejeita mao fechada`() {
         assertFalse(LibrasMath.detectarDedosEsticados(maoComDedos(esticados = false)))
     }

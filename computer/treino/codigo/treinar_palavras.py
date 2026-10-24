@@ -185,26 +185,114 @@ def amostras_da_gravacao(quadros, recortes):
     return amostras
 
 
+# ── a outra mao ─────────────────────────────────────────────────────────
+# Ter as DUAS maos na tela virou, sem querer, uma pista do que e a palavra.
+# COMPUTADOR tem as duas maos em 94% dos quadros, AJUDAR em 82%, NEUTRO em 79%
+# -- e PESSOA em 29%, SURDO em 12%. O modelo aprendeu "duas maos = COMPUTADOR/
+# CONVERSAR" e "uma mao = PESSOA/SURDO", e errava assim que a pessoa fazia
+# PESSOA com a outra mao a vista. Aqui as gravacoes de uma mao ganham copias
+# com a mao de uma gravacao de NEUTRO no lugar da que faltava, e o NEUTRO ganha
+# copias com uma mao so: a presenca da outra mao deixa de dizer qual e a palavra.
+FATIA_ESQ = slice(N_POSE * 3, (N_POSE + N_MAO) * 3)
+FATIA_DIR = slice((N_POSE + N_MAO) * 3, N_FEATURES)
+UMA_MAO_ATE = 0.45         # com as duas maos a vista em menos disto dos quadros = sinal de uma mao
+VARIANTES_POR_GRAVACAO = 2
+
+
+def maos_ausentes(quadros):
+    """[n, 2]: verdadeiro onde a mao (esquerda, direita) nao foi vista. Depois
+    da normalizacao os 21 pontos de uma mao nao vista saem todos iguais (eram
+    zeros)."""
+    x = np.asarray(quadros, dtype=np.float32).reshape(-1, N_PONTOS, 3)[:, :, 0]
+    return np.stack([np.ptp(x[:, N_POSE:N_POSE + N_MAO], axis=1) < 1e-6,
+                     np.ptp(x[:, N_POSE + N_MAO:], axis=1) < 1e-6], axis=1)
+
+
+def fracao_com_as_duas(quadros):
+    return float(1.0 - maos_ausentes(quadros).any(axis=1).mean())
+
+
+def sem_a_mao(dados, lado):
+    """A mesma gravacao como se uma das maos nunca tivesse aparecido."""
+    copia = dict(dados)
+    corpo = np.array(dados["corpo"], dtype=np.float32, copy=True)
+    inicio = N_POSE + (0 if lado == 0 else N_MAO)
+    corpo[:, inicio:inicio + N_MAO] = np.nan
+    copia["corpo"] = corpo
+    return copia
+
+
+def com_a_mao_do_doador(quadros, doador):
+    """Onde uma mao faltava, poe a do `doador` (um NEUTRO com as duas maos a
+    vista), quadro a quadro na mesma altura do tempo. Ja esta normalizada pelos
+    ombros, entao encaixa em qualquer pessoa. None se nao havia o que trocar."""
+    q = np.array(quadros, dtype=np.float32, copy=True)
+    ausente = maos_ausentes(q)
+    if ausente.any(axis=1).mean() < 0.3:
+        return None
+    posicao = np.minimum((np.arange(len(q)) * len(doador) / len(q)).astype(int), len(doador) - 1)
+    d = doador[posicao]
+    d_ausente = maos_ausentes(d)
+    mudou = False
+    for lado, fatia in enumerate((FATIA_ESQ, FATIA_DIR)):
+        trocar = ausente[:, lado] & ~d_ausente[:, lado]
+        if trocar.any():
+            q[trocar, fatia] = d[trocar, fatia]
+            mudou = True
+    return q if mudou else None
+
+
 def monta_dataset(recortes):
-    """X [N, 30, 225], y [N], grupo [N] (de que gravacao saiu) e quantas
-    gravacoes cada palavra tem."""
-    X, y, grupos, gravacoes = [], [], [], {}
-    curtas = []
+    """X [N, 30, 225], y [N], grupo [N] (de que gravacao saiu), variante [N]
+    (True nas copias com a outra mao a mais/a menos), quantas gravacoes cada
+    palavra tem e quais palavras sao de uma mao."""
+    lidas, gravacoes, curtas = [], {}, []
     for rotulo, ident, dados in pontos.carrega("palavras"):
         quadros = quadros_da_gravacao(dados)
         if len(quadros) < QUADROS_MINIMOS:
             curtas.append("%s/%s" % (rotulo, ident))
             continue
         gravacoes[rotulo] = gravacoes.get(rotulo, 0) + 1
-        amostras = amostras_da_gravacao(quadros, recortes)
-        X += amostras
-        y += [rotulo] * len(amostras)
-        grupos += ["%s/%s" % (rotulo, ident)] * len(amostras)
+        lidas.append((rotulo, ident, dados, quadros))
     if curtas:
         print("  ignoradas (corpo visivel em menos de %d quadros): %s"
               % (QUADROS_MINIMOS, " ".join(curtas)))
+
+    com_duas = {}
+    for rotulo, _, _, quadros in lidas:
+        com_duas.setdefault(rotulo, []).append(fracao_com_as_duas(quadros))
+    uma_mao = sorted(r for r, v in com_duas.items() if r != comum.NEUTRO and np.mean(v) < UMA_MAO_ATE)
+    doadores = [np.array(q, dtype=np.float32) for r, _, _, q in lidas
+                if r == comum.NEUTRO and fracao_com_as_duas(q) >= 0.6]
+    sorteio = np.random.default_rng(42)
+
+    X, y, grupos, variante = [], [], [], []
+
+    def junta(rotulo, grupo, quadros, eh_variante):
+        amostras = amostras_da_gravacao(quadros, recortes)
+        X.extend(amostras)
+        y.extend([rotulo] * len(amostras))
+        grupos.extend([grupo] * len(amostras))
+        variante.extend([eh_variante] * len(amostras))
+
+    for rotulo, ident, dados, quadros in lidas:
+        grupo = "%s/%s" % (rotulo, ident)
+        junta(rotulo, grupo, quadros, False)
+        if rotulo == comum.NEUTRO:
+            presente = 1.0 - maos_ausentes(quadros).mean(axis=0)
+            for lado in (0, 1):
+                if presente[lado] >= 0.5:
+                    sem = quadros_da_gravacao(sem_a_mao(dados, lado))
+                    if len(sem) >= QUADROS_MINIMOS:
+                        junta(rotulo, grupo, sem, True)
+        elif rotulo in uma_mao and doadores:
+            for _ in range(VARIANTES_POR_GRAVACAO):
+                v = com_a_mao_do_doador(quadros, doadores[int(sorteio.integers(len(doadores)))])
+                if v is not None:
+                    junta(rotulo, grupo, list(v), True)
     return (np.array(X, dtype=np.float32).reshape(-1, JANELA, N_FEATURES),
-            np.array(y, dtype=str), np.array(grupos, dtype=str), gravacoes)
+            np.array(y, dtype=str), np.array(grupos, dtype=str),
+            np.array(variante, dtype=bool), gravacoes, uma_mao)
 
 
 def confere_banco(gravacoes):
@@ -333,12 +421,19 @@ def main():
     ap.add_argument("--sem-ruido", action="store_true", help="desliga o aumento por ruido")
     ap.add_argument("--sem-recortes", action="store_true",
                     help="usa so a gravacao inteira, sem variacao temporal")
+    ap.add_argument("--sem-outra-mao", action="store_true",
+                    help="(experimento) treina sem as copias com a outra mao a vista")
+    ap.add_argument("--so-medir", action="store_true",
+                    help="(experimento) mede a nota e para, sem tocar no app")
     args = ap.parse_args()
 
     print("Lendo gravacoes novas (so as que ainda nao estao no banco):")
     pontos.atualiza("palavras")
-    X, y, grupos, gravacoes = monta_dataset([(0.0, 1.0)] if args.sem_recortes else RECORTES)
+    X, y, grupos, variante, gravacoes, uma_mao = monta_dataset(
+        [(0.0, 1.0)] if args.sem_recortes else RECORTES)
     print("  banco: " + "  ".join("%s %d" % kv for kv in sorted(gravacoes.items())))
+    if uma_mao:
+        print("  sinais de uma mao (treinam tambem com a outra mao a vista): %s" % " ".join(uma_mao))
     novas = sorted(set(gravacoes) - set(comum.palavras_do_app()))
     if novas:
         print("  palavra(s) nova(s): %s" % " ".join(novas))
@@ -360,31 +455,51 @@ def main():
     if tr is None:
         print("\n  (poucas gravacoes pra separar um teste justo: pulando a medicao)")
     else:
+        if args.sem_outra_mao:
+            tr = tr[~variante[tr]]
         X_tr, y_tr = (X[tr], y_idx[tr]) if args.sem_ruido else com_ruido(X[tr], y_idx[tr])
         print("\n  medindo: %d gravacoes no treino, %d no teste (ate %d epocas)..."
               % (len(set(grupos[tr])), len(set(grupos[te])), args.epocas), flush=True)
+        # Nota "de verdade" so nas gravacoes como foram gravadas; as copias com
+        # a outra mao a mais/a menos entram no treino e numa segunda tabela.
+        te_real, te_var = te[~variante[te]], te[variante[te]]
         medidor = novo_modelo(len(classes))
         # Pelo erro (val_loss), nao pelo acerto: o acerto no teste so muda de
         # gravacao em gravacao e empata cedo, e o primeiro empate parava o
         # treino antes de o modelo terminar de aprender.
         parada = tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=15,
                                                   restore_best_weights=True)
-        historico = medidor.fit(X_tr, y_tr, validation_data=(X[te], y_idx[te]),
+        historico = medidor.fit(X_tr, y_tr, validation_data=(X[te_real], y_idx[te_real]),
                                 epochs=args.epocas, batch_size=16, verbose=0,
                                 class_weight=pesos(y_tr, len(classes)), callbacks=[parada])
         epocas = max(20, int(np.argmin(historico.history["val_loss"])) + 1)
-        previsto = medidor.predict(X[te], verbose=0).argmax(axis=1)
+        previsto = medidor.predict(X[te_real], verbose=0).argmax(axis=1)
         print("\n  Acerto em gravacoes que o treino NAO viu:")
         for i, palavra in enumerate(classes):
-            alvo = y_idx[te] == i
+            alvo = y_idx[te_real] == i
             confusao = np.bincount(previsto[alvo], minlength=len(classes))
             confusao[i] = 0
             erro = (" (confunde com %s)" % classes[int(confusao.argmax())]) if confusao.any() else ""
             print("     %-14s %5.1f%%  em %d gravacoes%s"
-                  % (palavra, 100 * np.mean(previsto[alvo] == i), len(set(grupos[te][alvo])), erro))
-        print("     %-14s %5.1f%%" % ("TOTAL", 100 * np.mean(previsto == y_idx[te])))
+                  % (palavra, 100 * np.mean(previsto[alvo] == i),
+                     len(set(grupos[te_real][alvo])), erro))
+        print("     %-14s %5.1f%%" % ("TOTAL", 100 * np.mean(previsto == y_idx[te_real])))
+        if len(te_var):
+            prev_var = medidor.predict(X[te_var], verbose=0).argmax(axis=1)
+            print("\n  Os mesmos sinais com a OUTRA mao a vista (uma mao a mais, ou a menos no NEUTRO):")
+            for i, palavra in enumerate(classes):
+                alvo = y_idx[te_var] == i
+                if alvo.any():
+                    print("     %-14s %5.1f%%  em %d gravacoes"
+                          % (palavra, 100 * np.mean(prev_var[alvo] == i),
+                             len(set(grupos[te_var][alvo]))))
+
+    if args.so_medir:
+        return 0
 
     # 2) O modelo que vai pro app aprende com TODAS as gravacoes.
+    if args.sem_outra_mao:
+        X, y_idx = X[~variante], y_idx[~variante]
     print("\n  treinando o modelo final com todas as gravacoes (%d epocas)..." % epocas, flush=True)
     X_todo, y_todo = (X, y_idx) if args.sem_ruido else com_ruido(X, y_idx)
     modelo = novo_modelo(len(classes))

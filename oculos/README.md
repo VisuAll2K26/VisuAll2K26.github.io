@@ -338,16 +338,21 @@ Com o mock rodando e o app instalado:
 3. No alto da tela tem um **ícone de olho** (fica entre "Modo Libras" e o
    relógio de histórico). Toque nele. É o olho porque é ele que escolhe de
    onde vem a imagem: a câmera do celular ou a que está nos óculos.
-4. Como ainda não há endereço salvo, abre uma caixa de texto. Digite o endereço
+4. **Óculos de verdade:** é só isso. O app já sabe o endereço da placa
+   (`http://192.168.4.1/stream`, fixo) e entra sozinho na rede `VisuAll-Oculos`
+   (senha `visuall2026`); você não precisa conectar o Wi-Fi à mão nem saber IP
+   nenhum. Na primeira vez o Android pergunta se o app pode entrar na rede:
+   toque em **Conectar**.
+
+   **Dublê no PC:** segure o ícone de olho (toque longo) e digite o endereço
    que o dublê mostrou, **com `/stream` no fim**:
 
    ```
    http://192.168.15.10:8080/stream
    ```
 
-   (troque pelo IP que apareceu no seu PC)
-
-5. Toque em **Conectar**
+   (troque pelo IP que apareceu no seu PC) e toque em **Conectar**. Para
+   voltar aos óculos, no mesmo lugar toque em **Usar os óculos**.
 
 A imagem da webcam do PC deve aparecer no celular, com o reconhecimento rodando
 em cima dela. Faça um sinal na frente da webcam e a letra sai no celular.

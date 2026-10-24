@@ -90,6 +90,12 @@ internal object LibrasMath {
                abs(lms[4].first - lms[0].first) > FRACAO_POLEGAR_AFASTADO * escala
     }
 
+    // Limpar a frase pede as DUAS maos abertas ao mesmo tempo. Com uma mao so
+    // o C (e qualquer letra de dedos soltos) passava em detectarDedosEsticados
+    // e, segurado por 3 s, apagava a palavra que a pessoa estava soletrando.
+    fun duasMaosEstendidas(maos: List<List<Pair<Float, Float>>>): Boolean =
+        maos.count { it.size >= 21 && detectarDedosEsticados(it) } >= 2
+
     fun std(values: List<Float>): Float {
         val mean = values.average().toFloat()
         return sqrt(values.map { (it - mean) * (it - mean) }.average().toFloat())

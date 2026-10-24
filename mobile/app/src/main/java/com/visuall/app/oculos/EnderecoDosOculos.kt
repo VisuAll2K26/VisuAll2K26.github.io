@@ -23,6 +23,23 @@ internal object EnderecoDosOculos {
     const val URL = "http://$IP/stream"
 
     /**
+     * O endereco que o dialogo antigo sugeria (o simulador no PC). Quem so
+     * apertou "Conectar" sem mexer no campo ficou com ele gravado e nunca
+     * chegava na placa, entao ele conta como "nada gravado".
+     */
+    const val URL_DO_SIMULADOR = "http://192.168.15.10:8080/stream"
+
+    /**
+     * O endereco a usar, dado o que esta gravado. Nada gravado (ou o do
+     * simulador sugerido de fabrica) significa os oculos: ninguem precisa
+     * saber o IP da placa.
+     */
+    fun resolver(gravado: String?): String {
+        val limpo = gravado.orEmpty().trim()
+        return if (limpo.isBlank() || limpo == URL_DO_SIMULADOR) URL else limpo
+    }
+
+    /**
      * O endereco aponta pra propria placa?
      *
      * Decide se o app tenta entrar na rede dos oculos sozinho ou se usa o Wi-Fi

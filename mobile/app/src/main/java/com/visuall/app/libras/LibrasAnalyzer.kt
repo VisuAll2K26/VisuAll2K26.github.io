@@ -193,6 +193,13 @@ class LibrasAnalyzer(
         const val CONSENSO_DINAMICO_JANELAS_COM_NADA = 2
         const val CONSENSO_DINAMICO_MS_COM_NADA      = 130L
         const val TEMPO_PRA_LIMPAR       = 3_000L
+        // Quanto a mao precisa mudar de pose (distancia entre os 42 numeros
+        // normalizados) pra valer como "vou fazer outra letra". Ver PoseDeRepouso.
+        const val POSE_NOVA_DISTANCIA    = 0.6f
+        // Depois de limpar, ficar sem aceitar letra por este tempo a partir do
+        // momento em que as maos deixam de estar abertas: baixando as maos
+        // elas passam por um formato de C.
+        const val POS_LIMPEZA_ESPERA_MS  = 1_500L
         // No modo corpo a referencia exige mais tempo (TEMPO_LIMPAR_CORPO =
         // 5.0 em m01_visuall_config.py): um sinal de corpo dura muito mais que
         // uma letra, entao 3s de palma aberta acontecem sem querer.
@@ -427,10 +434,10 @@ class LibrasAnalyzer(
     }
 
     init {
-        // O alfabeto usa uma mao. No modo corpo, o detector de 2 maos e
-        // carregado sob demanda para nao pagar esse custo em toda abertura do
-        // modo Libras.
-        handLandmarkerAlfabeto = criarHandLandmarker(numHands = 1)
+        // O alfabeto le UMA letra por vez (selecionarMaoAlfabeto escolhe a
+        // mao), mas enxerga duas: o gesto de limpar a frase pede as duas maos
+        // abertas, e com um detector de 1 mao nao tem como saber da segunda.
+        handLandmarkerAlfabeto = criarHandLandmarker(numHands = 2)
     }
 
     private fun handLandmarkerAtual(): HandLandmarker {
@@ -454,6 +461,8 @@ class LibrasAnalyzer(
     private val commitGate            = LetterCommitGate()
     private val clearGate             = ClearGestureGate()
     private var tempoInicioEsticado   = 0L
+    private var aguardandoPosLimpeza  = false
+    private var posLimpezaDesde       = 0L
     private var ultimoTempoLimpar     = 0L
     // A frase e as regras de como ela muda (repetição, apagar) moram
     // no SentenceBuilder, que é testável em JVM.
@@ -487,6 +496,8 @@ class LibrasAnalyzer(
     // juntos sempre que a mão some do quadro ou o modo troca — extraído para
     // não depender de lembrar a mesma lista de resets em cada lugar.
     private fun resetEstadoAlfabeto() {
+        aguardandoPosLimpeza = false
+        posLimpezaDesde = 0L
         commitGate.reset()
         sentence.limparPendente()
         letraEngine.resetMovimentoSustentado()
@@ -651,10 +662,14 @@ class LibrasAnalyzer(
         val lms = selecionarMaoAlfabeto(result) ?: return
         // x corrigido para 4:3 (features + geometria); o desenho usa o cru.
         val pontos = lms.map { Pair(it.x() * aspectX, it.y()) }
-        val dedicosEsticados = LibrasMath.detectarDedosEsticados(pontos)
+        // Limpar = as DUAS maos abertas (ver LibrasMath.duasMaosEstendidas).
+        val dedicosEsticados = LibrasMath.duasMaosEstendidas(
+            result.landmarks().map { mao -> mao.map { Pair(it.x() * aspectX, it.y()) } }
+        )
 
         if (dedicosEsticados) {
             val agora = System.currentTimeMillis()
+            posLimpezaDesde = 0L      // ainda de maos abertas: a espera so conta depois
             if (tempoInicioEsticado == 0L) tempoInicioEsticado = agora
             val progresso = ((agora - tempoInicioEsticado).toFloat() / TEMPO_PRA_LIMPAR)
                 .coerceIn(0f, 1f)
@@ -665,6 +680,7 @@ class LibrasAnalyzer(
                 sentence.limpar(); commitGate.liberarRepeticao()
                 onInterrogativo(false)
                 tempoInicioEsticado = 0L; ultimoTempoLimpar = agora
+                aguardandoPosLimpeza = true; posLimpezaDesde = 0L
                 onRepeticaoPendente(null)
                 onFraseUpdate("")
             }
@@ -682,9 +698,21 @@ class LibrasAnalyzer(
             val confianca = predicao.confianca
             val modo = predicao.modo
 
+            val agora = System.currentTimeMillis()
+            // Acabou de limpar: baixar as maos passa por um formato de C (e de
+            // outras letras). Nada entra ate as maos terminarem de se mexer.
+            if (aguardandoPosLimpeza) {
+                if (posLimpezaDesde == 0L) posLimpezaDesde = agora
+                if (agora - posLimpezaDesde < POS_LIMPEZA_ESPERA_MS) {
+                    notificarLetra("-", 0f, modo)
+                    commitGate.reset()
+                    return
+                }
+                aguardandoPosLimpeza = false
+            }
+
             notificarLetra(letra, confianca, modo)
 
-            val agora = System.currentTimeMillis()
             if (commitGate.avaliar(letra, modo, agora)) {
                 when (sentence.aceitarLetra(letra)) {
                     SentenceBuilder.Resultado.ADICIONADA -> {
@@ -883,10 +911,17 @@ class LibrasAnalyzer(
     // Perguntar "alguma mao esta aberta?" e o que o gesto quer dizer, e nao
     // depende de rotulo de lado -- que numa camera frontal espelhada nem
     // corresponde a mao anatomica.
-    private fun maoAbertaNoQuadro(handResult: HandLandmarkerResult) =
-        handResult.landmarks().firstOrNull { hand ->
-            LibrasMath.detectarDedosEsticados(hand.map { Pair(it.x() * aspectX, it.y()) })
+    //
+    // Atualizado: limpar agora pede as DUAS maos abertas (so uma aberta
+    // limpava com o C, e qualquer sinal de palma aberta estava sujeito a isso).
+    // Devolve os dois pulsos, ou null se nao houver duas maos abertas.
+    private fun maosAbertasNoQuadro(handResult: HandLandmarkerResult): List<NormalizedLandmark>? {
+        val abertas = handResult.landmarks().filter { hand ->
+            hand.size >= BODY_HAND_POINTS &&
+                LibrasMath.detectarDedosEsticados(hand.map { Pair(it.x() * aspectX, it.y()) })
         }
+        return if (abertas.size >= 2) abertas.take(2).map { it.first() } else null
+    }
 
     private fun analisarCorpo(handResult: HandLandmarkerResult, poseResult: PoseLandmarkerResult) {
         onLandmarks(handsToArrays(handResult), poseToArray(poseResult), frameAspect)
@@ -914,16 +949,18 @@ class LibrasAnalyzer(
         // limpar, o resetCapture() abaixo zerava a captura, e o gesto NUNCA
         // chegava ao modelo. Relatado no aparelho exatamente assim: "AJUDAR não
         // funciona, ele fica contando os segundos pra limpar o texto".
-        val mao = maoAbertaNoQuadro(handResult)
-        val maoAberta = mao != null
+        val pulsos = maosAbertasNoQuadro(handResult)
+        val maoAberta = pulsos != null
         // Pulso (ponto 0): é o que menos se mexe quando só os dedos mudam de
-        // forma, então serve de referência estável de "a mão está neste lugar".
-        val pulso = mao?.firstOrNull()
+        // forma, então serve de referência estável de "as mãos estão neste
+        // lugar". Com duas mãos vale o ponto no meio entre os dois pulsos.
+        val pulsoX = pulsos?.let { (it[0].x() + it[1].x()) / 2f } ?: 0f
+        val pulsoY = pulsos?.let { (it[0].y() + it[1].y()) / 2f } ?: 0f
         // gestoEmAndamento e a trava principal: no AJUDAR a mao aberta e a de
         // APOIO e mal sai do lugar, entao o deslocamento sozinho nao segurava a
         // barra. Se a captura esta gravando, a pessoa esta sinalizando.
         val limpeza = clearGate.avaliar(
-            maoAberta, pulso?.x() ?: 0f, pulso?.y() ?: 0f, agora,
+            maoAberta, pulsoX, pulsoY, agora,
             gestoEmAndamento = bodyEngine.gestoEmAndamento
         )
         onGestoLimpar(limpeza.progresso)

@@ -13,6 +13,86 @@ Formato: **Constante(s)** — valor atual — decisão e por quê — status.
 
 ## Não lançado
 
+- **Letra nova não sai sozinha depois de uma letra com movimento nem de uma
+  limpeza** (`PoseDeRepouso`, `POSE_NOVA_DISTANCIA`=0.6,
+  `POS_LIMPEZA_ESPERA_MS`=1500) — relato: "depois do Z, parado, entrou V sem eu
+  mexer a mão; ao limpar com as duas mãos entrou C". Causa: quando o movimento
+  acaba o app volta a ler a mão parada como letra parada, e a pose em que o Z
+  terminou parecia V (estabilidade 0.85 s + espera 1.1 s = V na frase). Agora,
+  depois de uma letra com movimento confirmada, nenhuma letra sai enquanto a
+  mão não mudar de pose (distância >0.6 nos 42 números; mão parada oscila
+  0.1–0.2, letras diferentes ficam a 0.8–1.7) ou sair do quadro. Depois de
+  limpar, nada entra até 1.5 s depois de as mãos deixarem de estar abertas
+  (baixando, elas passam por um formato de C). Limite conhecido: U e V ficam a
+  ~0.3 e não soltam sozinhas; tire a mão do quadro entre as duas. Status:
+  **instalado; validar no aparelho**.
+
+- **Reforço do U congelado** (`treino/reforcos_congelados.txt`) — relato: "o U
+  parou de sair, e ele funcionava". O retreino aprendeu o U contra quadros do H
+  (mesma forma de dois dedos) e deixou de aceitar o U do celular. Voltou o U
+  original e o retreino não mexe nas letras listadas nesse arquivo. Pendente:
+  coletar letras PARADAS pelo app também (o descompasso webcam × app que
+  derrubou o Z deve existir nelas).
+
+- **Letras com movimento: treino com as janelas do próprio app** (treino) —
+  relato: "o X parou de sair e o Z agora sai X". Medido com as janelas reais do
+  celular (registradas pelo app): ficam a distância 3 a 6 de qualquer janela do
+  banco, contra 0,8 entre gravações da webcam; a mão muda 0,056 por quadro no
+  app, contra 0,015–0,025 nas gravações. O modelo respondia Z como X com 100% e
+  X como K. Ruído, giro, esticada do eixo x e movimento mais rápido no treino
+  **não** resolveram; incluir janelas do app resolveu: treinando com metade das
+  tentativas e testando na outra metade (que o treino nunca viu), Z passou de
+  X→Z e X de K→X. Novo `treino/codigo/coletar.py` +
+  `4 - Coletar letra com movimento pelo app.bat`: o computador liga a coleta
+  (arquivo `coletando` na pasta do app, via adb), você faz a letra no app, e as
+  janelas vão para `pontos/letras/<L>/app_*.npz`; `LetraEngine` só grava quando
+  o arquivo existe. Modelo instalado já treinado com as janelas desta sessão
+  (131 de Z, 60 de X). Status: **instalado; validar Z e X no aparelho e coletar
+  H, J, K e NADA do mesmo jeito**.
+
+- **Óculos: o botão conecta direto, sem pedir endereço**
+  (`EnderecoDosOculos.resolver`) — relato: "conecto no Wi-Fi dos óculos mas não
+  sei o endereço". Sem nada gravado, o destino é `http://192.168.4.1/stream` e o
+  app entra sozinho na rede `VisuAll-Oculos`. O endereço do dublê no PC que o
+  diálogo sugeria também conta como "nada gravado" (quem só apertava Conectar
+  ficou com ele salvo e nunca chegava na placa). O campo de endereço continua no
+  toque longo, agora com "Usar os óculos". Status: **instalado; validar com a
+  placa**.
+
+- **Limpar a frase pede as DUAS mãos abertas** (`LibrasMath.duasMaosEstendidas`;
+  `TEMPO_PRA_LIMPAR`=3 s no alfabeto e `TEMPO_PRA_LIMPAR_CORPO`=5 s nas
+  palavras, como estavam) — relato: "a letra C é reconhecida como mão aberta e
+  limpa a palavra em 3 segundos". Com uma mão só, qualquer letra de dedos
+  soltos passava em `detectarDedosEsticados`. Para enxergar a segunda mão o
+  detector do alfabeto passou de 1 para 2 mãos (a escolha da mão da letra,
+  `selecionarMaoAlfabeto`, já existia). Status: **implementado e instalado;
+  validar no aparelho** (C segurado 5 s não limpa; as duas mãos abertas, sim).
+
+- **Reforços das letras paradas** (treino) — relato: depois do retreino
+  "H, M, N, U e Z pararam; tudo vira F". O reforço novo do F (6 gravações)
+  tinha prioridade sobre o modelo geral e foi treinado vendo como "não" só
+  outras letras paradas: com os limiares do app (0,97) ele virava "F" 645 quadros
+  de K, 408 de X e 83 de H, e só reconhecia 27% do próprio F. Correções no
+  treino: (1) sem parada antecipada (deixava os reforços "em dúvida", ~0,6 de
+  confiança, que o app nunca aceita); (2) os quadros das letras com movimento, o
+  NADA e as mãos das palavras também são "não"; (3) só instala o reforço que
+  dispara em >=50% das próprias fotos e em <=1% do que não é a letra; (4)
+  reforço de letra nova entra em `reforcos_restritos.txt`. Resultado medido
+  (decisão de prioridade do app): A 94%, D 97%, S 89%, T 94% das próprias fotos
+  e nenhum quadro de H, K ou X roubado. Os modelos de A, C, D, S, T, U, V foram
+  refeitos; o F não passou na regra e não foi instalado. Status: **instalado;
+  validar M, N, U, H e Z no aparelho**.
+
+- **Palavras: a outra mão não é mais pista** (treino) — relato: "PESSOA e
+  SURDO viram CONVERSAR/COMPUTADOR assim que aparecem duas mãos". No banco,
+  as duas mãos estavam em 94% dos quadros de COMPUTADOR e 29% de PESSOA, 12% de
+  SURDO. O treino agora detecta as palavras de uma mão, treina também com a mão
+  de um NEUTRO no lugar da que faltava e dá ao NEUTRO cópias de uma mão só.
+  Medido em gravações não vistas, com a outra mão à vista: PESSOA 48%→92%,
+  SURDO 11%→99%, NEUTRO (uma mão) 20%→100%; nota geral nas gravações como
+  gravadas 94%. O gravador guia o NEUTRO (dica que gira, tecla `0`). Status:
+  **instalado; validar PESSOA/SURDO com a outra mão à vista no aparelho**.
+
 - **Classe `NADA` no modelo das letras com movimento** (treino) e
   **`LIMIAR_MOVIMENTO_COM_NADA=0.20`, `CONSENSO_DINAMICO_JANELAS_COM_NADA=2`,
   `CONSENSO_DINAMICO_MS_COM_NADA=130`** (novos) — relato: "as letras com

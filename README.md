@@ -103,6 +103,7 @@ Tudo é **duplo-clique** em `computer\treino\`:
 | `1 - Adicionar palavra nova` | ensinar uma palavra que o app ainda não conhece |
 | `2 - Retreinar palavras` | o app acertar melhor as palavras que já conhece |
 | `3 - Retreinar letras` | o app acertar melhor as letras |
+| `4 - Coletar letra com movimento pelo app` | uma letra com movimento (H J K X Z) sai errada **no celular** |
 
 Abre a câmera, você grava (ESPAÇO), fecha (Q), responde **S** e ele treina.
 O modelo novo já cai dentro do app: é só rodar de novo pelo Android Studio.

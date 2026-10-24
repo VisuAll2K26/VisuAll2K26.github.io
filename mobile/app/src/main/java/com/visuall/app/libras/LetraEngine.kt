@@ -16,6 +16,12 @@ internal class LetraEngine(
     private val onFeedback: (mensagem: String, nivel: Int) -> Unit
 ) {
     private val ortEnv          = OrtEnvironment.getEnvironment()
+    // Coleta de janelas pro treino (ver classificarDinamico). So funciona em
+    // build de depuracao, onde o adb alcanca a pasta do app (run-as).
+    private val diagArquivo = java.io.File(context.filesDir, "diag_dinamico.txt")
+    private val coletaLigada = java.io.File(context.filesDir, "coletando")
+    private val poseDeRepouso = PoseDeRepouso()
+
     private val sessionEstatico = ortEnv.createSession(
         context.assets.open("letras_estaticas/geral/model.onnx").readBytes()
     )
@@ -152,6 +158,7 @@ internal class LetraEngine(
     }
 
     fun limparBuffer() {
+        poseDeRepouso.desarmar()
         esvaziarJanela()
         consenso.reset()
         gestoEmCurso = false
@@ -334,6 +341,13 @@ internal class LetraEngine(
             EstadoMovimento.PARADO -> {
                 if (gestoEmCurso) {
                     gestoEmCurso = false
+                    // Uma letra com movimento foi confirmada: a pose em que a
+                    // mao parou nao pode virar uma letra parada (o Z acabava e
+                    // um V entrava sozinho). Ver PoseDeRepouso.
+                    val confirmada = consenso.predicaoConfirmada
+                    if (confirmada != null && LetterDecision.normalizarSaida(confirmada.letra) != "-") {
+                        poseDeRepouso.armar()
+                    }
                     consenso.reset()
                     // O rabicho do gesto que acabou não pode virar o começo da
                     // janela do próximo: a janela recomeça vazia.
@@ -341,6 +355,7 @@ internal class LetraEngine(
                 }
             }
         }
+        if (poseDeRepouso.travada(dados)) return Prediction("-", 0f, "pos_gesto")
         // Calibração pessoal entra apenas como reforço quando o modelo não
         // reconheceu nada (ver aplicarCalibracaoPessoal).
         return aplicarCalibracaoPessoal(dados, classificarEstatico(dados))
@@ -453,6 +468,23 @@ internal class LetraEngine(
             classificarDinamicoOrientado(entrada),
             janelaCrua
         )
+        // COLETA PARA O TREINO: so liga quando o computador cria o arquivo
+        // "coletando" (computer/treino/codigo/coletar.py, via adb). Guarda a
+        // janela exatamente como ela entrou no modelo, pra o treino aprender
+        // com o que ESTE app entrega (camera, velocidade e tremor do celular),
+        // que nao e igual ao das gravacoes da webcam.
+        if (coletaLigada.exists()) runCatching {
+            val p = rodarModelo(sessionDinamico, entrada, LibrasAnalyzer.FEATURES_DINAMICO)
+            if (diagArquivo.length() < 3_000_000L) {
+                diagArquivo.appendText(
+                    "${System.currentTimeMillis()}|" +
+                        labelsDinamico.zip(p.toList()).joinToString(" ") {
+                            "${it.first}:${"%.2f".format(java.util.Locale.US, it.second)}"
+                        } + "|${direto.letra}/${direto.modo}|" +
+                        entrada.joinToString(",") { "%.4f".format(java.util.Locale.US, it) } + "\n"
+                )
+            }
+        }
         if (direto.letra != "-") return direto
         // O modelo afirmou que não é letra. O espelho existe pra cobrir a mão
         // que o treino não viu, não pra dar uma segunda chance a um "não".

@@ -12,6 +12,25 @@ import org.junit.Test
  */
 class EnderecoDosOculosTest {
 
+    @org.junit.Test
+    fun `sem endereco gravado o destino sao os oculos`() {
+        org.junit.Assert.assertEquals(EnderecoDosOculos.URL, EnderecoDosOculos.resolver(null))
+        org.junit.Assert.assertEquals(EnderecoDosOculos.URL, EnderecoDosOculos.resolver("  "))
+    }
+
+    @org.junit.Test
+    fun `o endereco do simulador sugerido de fabrica nao prende o app longe da placa`() {
+        org.junit.Assert.assertEquals(
+            EnderecoDosOculos.URL, EnderecoDosOculos.resolver(EnderecoDosOculos.URL_DO_SIMULADOR))
+    }
+
+    @org.junit.Test
+    fun `um endereco digitado de proposito e respeitado`() {
+        org.junit.Assert.assertEquals(
+            "http://192.168.0.7:8080/stream", EnderecoDosOculos.resolver(" http://192.168.0.7:8080/stream "))
+    }
+
+
     @Test
     fun `o endereco da placa e reconhecido`() {
         assertTrue(EnderecoDosOculos.ehAPlaca(EnderecoDosOculos.URL))

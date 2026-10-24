@@ -55,9 +55,34 @@ MAXIMO_PARADA = 500        # amostras por classe, no maximo
 MAXIMO_MOVIMENTO = 1500    # cada video rende janelas em 3 taxas de quadros
 MINIMO_AMOSTRAS = 10       # menos que isso nao da modelo individual
 NADA_PARADO_A_CADA = 3     # 1 quadro a cada 3 das gravacoes de NADA
+# O app so aceita um reforco individual acima disto (CONFIANCA_INDIVIDUAL no
+# LibrasAnalyzer.kt). Um reforco que nunca passa daqui nao serve pra nada, e um
+# que passa fora da propria letra rouba a letra dos outros.
+LIMIAR_REFORCO = 0.97
+SERVE_MINIMO = 0.50        # fracao das proprias fotos que precisa passar do limiar
+FALSO_MAXIMO = 0.01        # fracao do que NAO e a letra que pode passar do limiar
+MAXIMO_QUADROS_MOVEIS = 40000
+# Janelas coletadas pelo proprio app (coletar.py): sao poucas e valem muito, entao
+# cada uma entra varias vezes, com um tremor pequeno diferente em cada copia.
+COPIAS_DO_APP = 6
+TREMOR_DO_APP = 0.02
 
 
 # ── o banco, separado do jeito que cada modelo usa ──────────────────────
+def copias_do_app(janelas, copias=COPIAS_DO_APP, semente=11):
+    """A janela como o app a entregou, mais `copias - 1` com tremor leve."""
+    janelas = np.asarray(janelas, dtype=np.float32).reshape(-1, 420)
+    rs = np.random.RandomState(semente)
+    saida = [janelas]
+    for _ in range(copias - 1):
+        f = janelas.reshape(-1, 10, 21, 2) + rs.normal(0, TREMOR_DO_APP, (len(janelas), 10, 21, 2))
+        f[:, :, 0, :] = 0.0                                    # o pulso continua na origem
+        m = np.abs(f).reshape(len(f), 10, -1).max(2)
+        m[m == 0] = 1.0
+        saida.append((f / m[:, :, None, None]).reshape(len(f), -1).astype(np.float32))
+    return list(np.vstack(saida))
+
+
 class Banco:
     def __init__(self):
         paradas, movimento = set(comum.letras_estaticas()), set(comum.letras_dinamicas())
@@ -70,6 +95,15 @@ class Banco:
 
         for rotulo, ident, dados in pontos.carrega("letras"):
             grupo = "%s/%s" % (rotulo, ident)
+            if dados["tipo"] == "janelas":
+                # Vieram do celular ja prontas (coletar.py), sem passar pelo MediaPipe.
+                self.gravacoes[rotulo] = self.gravacoes.get(rotulo, 0) + 1
+                copias = copias_do_app(dados["janelas"])
+                if rotulo == NADA:
+                    self._junta(self.Xn, self.gn, None, copias, grupo)
+                elif rotulo in movimento:
+                    self._junta(self.Xm, self.gm, self.ym, copias, grupo, rotulo)
+                continue
             maos, sequencia = dados["maos"], dados["tipo"] == "sequencia"
             fps = dados.get("fps", pontos.QUADROS_POR_SEGUNDO)
             self.gravacoes[rotulo] = self.gravacoes.get(rotulo, 0) + 1
@@ -381,9 +415,23 @@ def treina_paradas(banco, so_estas=None, espelho=True):
     # letras gravadas MAIS o NADA. So com outras letras, o modelo aprende a
     # separar D de L e passa a dizer "sim" pra qualquer mao solta no ar.
     nada = np.array(banco.nada_parado, dtype=np.float32).reshape(-1, 42)
+    # Quadros soltos das letras com movimento, do NADA e das maos dos videos de
+    # palavras: o inicio de um H, de um Z ou de um sinal tem a forma de uma
+    # letra parada. Sem eles como "nao", o reforco aprendia a separar so as
+    # letras paradas entre si e disparava em tudo isso (o F de prioridade
+    # roubava 1 em cada 4 quadros de X e de K).
+    moveis = np.array(banco.Xm + banco.Xn, dtype=np.float32).reshape(-1, 42)
+    if len(moveis) > MAXIMO_QUADROS_MOVEIS:
+        moveis = moveis[np.sort(np.random.RandomState(42).choice(
+            len(moveis), MAXIMO_QUADROS_MOVEIS, replace=False))]
     if espelho:
         X, y, g = com_espelho(X, y, g)
         nada = np.vstack([nada, espelha(nada)])
+        moveis = np.vstack([moveis, espelha(moveis)])
+    congelados = set(comum.le_labels(comum.TREINO / "reforcos_congelados.txt"))
+    ja_instaladas = {p.name for p in comum.ASSETS_ESTATICAS.iterdir()
+                     if p.is_dir() and p.name != "geral" and (p / "model.onnx").exists()}
+    novas = []
     alvos = sorted(set(y) if so_estas is None else set(so_estas) & set(y))
     if so_estas:
         for letra in sorted(set(so_estas) - set(y)):
@@ -397,6 +445,13 @@ def treina_paradas(banco, so_estas=None, espelho=True):
     for letra in alvos:
         positivos, outras = X[y == letra], X[y != letra]
         gravacoes = banco.gravacoes.get(letra, 0)
+        if letra in congelados:
+            # Funciona no celular do jeito que esta: o retreino ja derrubou o U
+            # uma vez (aprendeu a separar do H e deixou de aceitar o U do app).
+            print("  %-4s %2d gravacoes | CONGELADO: fica o modelo que esta no app"
+                  " (para refazer, tire a letra de treino\\reforcos_congelados.txt)"
+                  % (letra, gravacoes))
+            continue
         if len(positivos) < MINIMO_AMOSTRAS:
             print("  %-4s pulada: so %d fotos (minimo %d)." % (letra, len(positivos), MINIMO_AMOSTRAS))
             continue
@@ -404,37 +459,64 @@ def treina_paradas(banco, so_estas=None, espelho=True):
         # aprende a responder sempre "nao". Outras letras e NADA sorteados
         # separados, pra nenhum dos dois sumir.
         rs = np.random.RandomState(42)
-        fontes = [p for p in (outras, nada) if len(p)]
+        fontes = [p for p in (outras, nada, moveis) if len(p)]
         if not fontes:
             print("  %-4s pulada: nao ha nenhum exemplo de 'nao' (grave outra letra ou NADA)." % letra)
             continue
-        cota = max(len(positivos) * 3, 60) // len(fontes)
+        cota = max(len(positivos) * 3, 120) // len(fontes)
         negativos = np.vstack([p[np.sort(rs.choice(len(p), cota, replace=False))] if len(p) > cota
                                else p for p in fontes])
         X_bin = np.vstack([positivos, negativos])
         y_bin = np.concatenate([np.ones(len(positivos), int), np.zeros(len(negativos), int)])
-        # Parada antecipada so com bastante amostra: com uma gravacao so
-        # (~36 fotos com o espelho) ela desistia na 12a rodada, com o modelo
-        # ainda respondendo "nao" pra tudo.
+        # SEM parada antecipada: ela parava quando o acerto de teste batia nos
+        # 100%, com o modelo ainda "em duvida" (confianca ~0.6), e o app so
+        # aceita reforco acima de 0.97 -- o reforco instalava e nunca disparava.
         modelo = MLPClassifier(hidden_layer_sizes=(128, 64), activation="relu", max_iter=500,
-                               random_state=42, early_stopping=len(X_bin) >= 500,
-                               validation_fraction=0.15).fit(X_bin, y_bin)
-        reconhece = float(modelo.predict(positivos).mean())
+                               random_state=42).fit(X_bin, y_bin)
         aviso = "  <- poucas gravacoes, grave mais" if gravacoes < 5 else ""
-        if reconhece < 0.9:
-            # Um reforco que nao reconhece nem as proprias fotos tiraria a
-            # letra do app (ele e consultado antes do geral). Fica o que ja
-            # estava instalado.
-            print("  %-4s %2d gravacoes | reconheceu so %.0f%% das proprias fotos: NAO instalado,"
-                  " fica o modelo que ja estava%s" % (letra, gravacoes, 100 * reconhece, aviso))
+
+        # Mede do jeito que o app decide: acima do limiar, nas proprias fotos
+        # e em TUDO que nao e a letra (nao so nos exemplos sorteados acima).
+        serve = float(np.mean(modelo.predict_proba(positivos)[:, 1] >= LIMIAR_REFORCO))
+        fora = np.vstack([p for p in (outras, nada, moveis) if len(p)])
+        falso = float(np.mean(modelo.predict_proba(fora)[:, 1] >= LIMIAR_REFORCO))
+        motivo = None
+        if serve < SERVE_MINIMO:
+            motivo = "so passa do limiar em %.0f%% das proprias fotos (minimo %.0f%%)" % (
+                100 * serve, 100 * SERVE_MINIMO)
+        elif falso > FALSO_MAXIMO:
+            motivo = "dispara em %.1f%% do que NAO e %s (maximo %.0f%%): roubaria outras letras" % (
+                100 * falso, letra, 100 * FALSO_MAXIMO)
+        if motivo:
+            existe = letra in ja_instaladas
+            print("  %-4s %2d gravacoes | NAO instalado: %s%s%s" % (
+                letra, gravacoes, motivo, "; fica o modelo que ja estava" if existe else "", aviso))
             continue
         destino = exporta_onnx(modelo, 42, comum.ASSETS_ESTATICAS / letra / "model.onnx")
         ok = valida(destino, 42, 2)
         resultado, feitos = resultado and ok, feitos + 1
-        print("  %-4s %2d gravacoes | %d sim / %d nao | reconhece %.0f%% das proprias | %s%s"
-              % (letra, gravacoes, len(positivos), len(negativos), 100 * reconhece,
+        if letra not in ja_instaladas:
+            novas.append(letra)
+        print("  %-4s %2d gravacoes | %d sim / %d nao | dispara em %.0f%% das proprias e %.1f%% das outras | %s%s"
+              % (letra, gravacoes, len(positivos), len(negativos), 100 * serve, 100 * falso,
                  "ok" if ok else "NAO VALIDOU", aviso))
+    if novas:
+        restringe_novas(novas)
     return resultado if feitos else None
+
+
+def restringe_novas(letras):
+    """Reforco de letra que o app ainda nao tinha entra RESTRITO: so decide
+    entre letras do mesmo grupo e nunca passa por cima do modelo geral. Quem
+    quiser dar prioridade depois, depois de testar no celular, apaga a letra
+    de reforcos_restritos.txt."""
+    arquivo = comum.ASSETS_ESTATICAS / "reforcos_restritos.txt"
+    atuais = comum.le_labels(arquivo) if arquivo.exists() else []
+    todas = sorted(set(atuais) | set(letras))
+    arquivo.write_text("\n".join(todas) + "\n", encoding="utf-8")
+    print("\n  Reforco novo (%s) entrou como RESTRITO em reforcos_restritos.txt:" % " ".join(letras))
+    print("  ele so ajuda a decidir dentro do grupo %s e nao passa por cima do modelo geral." % " ".join(todas))
+    print("  Funcionou bem no celular e voce quer prioridade? Tire a letra desse arquivo.")
 
 
 def main():

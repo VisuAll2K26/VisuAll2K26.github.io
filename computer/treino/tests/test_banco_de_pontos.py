@@ -207,6 +207,16 @@ class TestGravador(PastasTemporarias):
         g.tecla(ord("x"), 0.0)
         self.assertEqual(list(pasta.iterdir()), [])
 
+    def test_zero_pula_pro_neutro_e_o_roteiro_gira(self):
+        g = self.gravar.Gravador("palavra-nova")
+        self._digita(g, "bom dia")
+        g.tecla(ord("0"), 0.0)
+        self.assertEqual(g.rotulo, comum.NEUTRO)
+        self.assertTrue((comum.GRAVACOES / "palavras" / comum.NEUTRO).is_dir())
+        dicas = {self.gravar.dica("palavras", comum.NEUTRO, set(), i)
+                 for i in range(len(self.gravar.NEUTRO_ROTEIRO))}
+        self.assertEqual(len(dicas), len(self.gravar.NEUTRO_ROTEIRO))
+
     def test_letra_com_movimento_e_nada_continuam_video(self):
         g = self.gravar.Gravador("letras")
         for rotulo in [comum.NADA] + sorted(g.dinamicas)[:1]:
@@ -242,6 +252,48 @@ class TestNaoEsquece(PastasTemporarias):
         faltam = treinar_letras.faltam_no_banco(comum.ASSETS_DINAMICAS, atuais - {"K"})
         if comum.le_labels(comum.ASSETS_DINAMICAS / "geral" / "labels.txt"):
             self.assertEqual(faltam, ["K"])
+
+
+class TestJanelasDoApp(PastasTemporarias):
+    """Janelas coletadas pelo proprio app (coletar.py) entram no treino como
+    gravacao daquela letra, sem passar pelo MediaPipe."""
+
+    def _janelas(self, n=40):
+        return np.random.RandomState(0).uniform(-1, 1, (n, 420)).astype(np.float32)
+
+    def test_letra_com_movimento(self):
+        import coletar
+        import treinar_letras
+        coletar.salva("Z", self._janelas())
+        banco = treinar_letras.Banco()
+        self.assertEqual(banco.gravacoes["Z"], 1)
+        self.assertEqual(len(banco.Xm), 40 * treinar_letras.COPIAS_DO_APP)
+        self.assertEqual(set(banco.ym), {"Z"})
+
+    def test_nada_vira_exemplo_de_nada(self):
+        import coletar
+        import treinar_letras
+        coletar.salva(comum.NADA, self._janelas(30))
+        banco = treinar_letras.Banco()
+        self.assertEqual(len(banco.Xn), 30 * treinar_letras.COPIAS_DO_APP)
+        self.assertEqual(banco.Xm, [])
+
+    def test_copias_mantem_a_forma_do_app(self):
+        import treinar_letras
+        janelas = self._janelas(5).reshape(5, 10, 21, 2)
+        janelas[:, :, 0, :] = 0.0                       # o app entrega o pulso na origem
+        copias = np.array(treinar_letras.copias_do_app(janelas.reshape(5, 420)))
+        self.assertEqual(copias.shape, (5 * treinar_letras.COPIAS_DO_APP, 420))
+        frames = copias.reshape(-1, 10, 21, 2)
+        np.testing.assert_allclose(frames[:, :, 0, :], 0.0)              # pulso na origem
+        self.assertLessEqual(float(np.abs(copias).max()), 1.0 + 1e-6)    # maior valor = 1
+
+    def test_apara_tira_o_comeco_e_o_fim_das_letras_mas_nao_do_nada(self):
+        import coletar
+        tempos = np.arange(0, 6000, 100)
+        janelas = np.zeros((len(tempos), 420), np.float32)
+        self.assertEqual(len(coletar.apara(tempos, janelas, "Z")), 40)
+        self.assertEqual(len(coletar.apara(tempos, janelas, comum.NADA)), 60)
 
 
 class TestTransicoes(unittest.TestCase):

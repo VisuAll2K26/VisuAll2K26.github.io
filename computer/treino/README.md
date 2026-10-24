@@ -8,6 +8,7 @@ o modelo novo já cai dentro do app. Tudo é **duplo-clique**.
 | ensinar uma **palavra nova** ao app | `1 - Adicionar palavra nova.bat` |
 | que o app **acerte melhor** palavras que ele já conhece | `2 - Retreinar palavras.bat` |
 | que o app **acerte melhor** letras | `3 - Retreinar letras.bat` |
+| corrigir uma letra com movimento (H J K X Z) que **sai errada no celular** | `4 - Coletar letra com movimento pelo app.bat` |
 | **voltar** ao modelo de antes do último treino | `Desfazer ultimo treino.bat` |
 
 Os três primeiros funcionam igual: **abre a câmera → você grava → fecha a
@@ -126,6 +127,28 @@ Duas proteções, para nunca piorar o app sem perceber:
 - **Sempre dá para voltar.** Antes de mudar um modelo, o treino guarda uma
   cópia do anterior em `modelos_anteriores\` (é o que o `Desfazer` usa).
 
+### Letra com movimento que erra no celular: `4 - Coletar...`
+
+A webcam e o app não veem a mão do mesmo jeito (câmera do celular, mais rápido,
+mais tremido). Medido no celular: as janelas que o app entrega ao modelo ficam a
+distância **3 a 6** das gravações da webcam, contra 0,8 entre duas gravações da
+própria webcam, e o modelo respondia o Z como X com 100% de certeza. Treinar com
+mais webcam não resolve; treinar com **o que o app entrega** resolve (tentativas
+que o treino nunca viu passaram a sair certas).
+
+1. Celular no cabo, **depuração USB** ligada, app instalado pelo Android Studio
+   (build de depuração) e aberto no modo **alfabeto**.
+2. Abra o `4 - Coletar letra com movimento pelo app.bat`, digite a letra, faça o
+   movimento no app por uns 30 s e tecle **ENTER**. As janelas vão para
+   `pontos\letras\<LETRA>\app_*.npz` (no git).
+3. Faça o mesmo com as letras que erram e com **NADA** (mexer a mão sem fazer
+   letra).
+4. Rode o `3 - Retreinar letras.bat`. As janelas do app entram no treino ao lado
+   das gravações da webcam.
+
+O app só guarda as janelas enquanto o computador pede (cria o arquivo
+`coletando` dentro da pasta do app, via `adb`), e só em build de depuração.
+
 ### O que cada treino faz
 
 **Palavras** (`1` e `2`): refaz o modelo de palavras com todas as gravações.
@@ -133,6 +156,23 @@ Palavra nova não exige mudar nada no código do app: ele lê a lista de
 palavras do próprio modelo. A palavra **NEUTRO** ("parado, sem sinal") é
 especial: precisa existir (é como o modelo sabe que **não** há sinal) e o app
 nunca a escreve na frase.
+
+**Gravar o NEUTRO:** no `2 - Retreinar palavras.bat` aperte **N** até chegar
+nele, ou aperte **0** em qualquer um dos dois `.bat` de palavras (no `1` isso
+vale depois de dar nome a uma palavra, ou digite `NEUTRO` no campo do nome). A
+tela mostra **o que fazer em cada gravação** e troca sozinha a cada uma: duas
+mãos paradas à vista, só a direita, só a esquerda, mãos mexendo sem sinal... É a
+variedade que importa; grave **uns 30**, sempre com os ombros dentro da tela.
+
+**A outra mão não pode ser pista.** No banco, ter as duas mãos na tela virou
+sinal de COMPUTADOR/CONVERSAR (94% e 58% dos quadros) e uma mão só virou sinal
+de PESSOA/SURDO (29% e 12%), e o app errava assim que a pessoa fazia PESSOA com
+a outra mão à vista. O treino agora detecta sozinho as palavras de uma mão e
+treina também com a mão de um NEUTRO no lugar da que faltava, e o NEUTRO ganha
+cópias com uma mão só. Medido em gravações que o treino não viu, com a outra
+mão à vista: PESSOA **48% → 92%**, SURDO **11% → 99%**, NEUTRO com uma mão
+**20% → 100%**. Mesmo assim, grave suas palavras com as duas mãos de vez em
+quando: dado real vale mais que a cópia.
 
 **Letras** (`3`):
 
@@ -145,6 +185,24 @@ nunca a escreve na frase.
   um **reforço** próprio ("isto é um D?"), que o app consulta antes do geral,
   e as outras letras não mudam. O geral só é refeito quando o banco tiver
   todas as 21.
+- **Regras que protegem as outras letras.** O reforço aprende "isto é um D?"
+  vendo como "não" as outras letras gravadas, o NADA, **os quadros das letras
+  com movimento e as mãos das palavras**. Depois o treino mede do jeito que o
+  app decide (acima de 0,97) e **só instala** o reforço que dispara em pelo menos
+  metade das próprias fotos e em no máximo 1% do que **não** é a letra. Se
+  reprovar, a linha diz o motivo e fica o modelo que já estava. Antes dessa
+  regra, um reforço do F com 6 gravações passou por cima de tudo e virou H, K, X,
+  Z, M, N e U em "F".
+- **Reforço "congelado".** As letras listadas em `treino\reforcos_congelados.txt`
+  (hoje o **U**) não são refeitas pelo retreino: funcionam no celular do jeito
+  que estão. Para refazer uma, apague a linha dela.
+- **Letra nova entra "restrita".** Um reforço de uma letra que o app ainda não
+  tinha só ajuda a decidir dentro do grupo (`reforcos_restritos.txt`) e nunca
+  passa por cima do modelo geral. Quando testar no celular e quiser dar
+  prioridade, apague a letra desse arquivo.
+- **Grave também as letras que ainda não estão no banco** (B, E, G, I, L, M, N,
+  O, P, Q, R, W, Y): cada reforço só aprende a **não** disparar nelas se elas
+  estiverem no banco, e é isso que fecha o caminho para refazer o modelo geral.
 
 ---
 
@@ -188,14 +246,14 @@ gravações pelo mesmo caminho que o app faz.
 | H sai fácil, **K não sai** (vira H) | O reforço antigo do H respondia H para 64% das janelas de K | **H e K até ~35 cada** (hoje 15 e 20) |
 | **D** só sai de perto | As 18 fotos de D são **uma** gravação, de perto; de longe vira L | **D: 15**, e **L: 5** |
 | **C** e **V** (só inclinando a mão) | Não há nenhuma gravação delas no banco | **C e V: 15 cada** (V com a mão reta); **O, U, R, W: 5 cada** |
-| **PESSOA / SURDO** erram com as duas mãos na tela | Nenhuma gravação tem as duas mãos visíveis | **+25 de cada**, com a outra mão parada **na tela** |
+| **PESSOA / SURDO** erram com as duas mãos na tela | Ter as duas mãos na tela virou pista de COMPUTADOR/CONVERSAR (ver acima) | Corrigido por cópias automáticas; ainda vale gravar **+25 de cada** com a outra mão parada **na tela** |
+| **NEUTRO** fraco | Poucas gravações, quase todas com as duas mãos | **~30**, seguindo a dica da tela (tecla **0**) |
 
 O que o retreino das letras já mostrou com as gravações de hoje (medido em
 vídeos que o treino não viu, no caminho do app): letras com movimento certas
 **de 28 para 83 em 95**, trocas entre letras paradas que viravam letra **de
-96 para 0 em 300**. O app instalado ainda usa o modelo antigo: o app já
-entende a classe NADA e ajusta os limiares sozinho quando o modelo novo
-chegar. Falta gravar o que está na tabela e rodar o `3`.
+96 para 0 em 300**. O app já entende a classe NADA e ajusta os limiares
+sozinho. Falta gravar o que está na tabela e rodar o `3`.
 
 Depois de instalar, confira no celular uma letra parada **segurada por 5
 segundos**: nenhuma gravação mede isso. Se letra parada passar a falhar com o
@@ -231,6 +289,7 @@ parte de tudo que foi gravado até hoje. Os vídeos antigos não precisam vir.
 | A câmera não abre | Feche Zoom, Teams, OBS ou outro programa usando a câmera. |
 | "PAREI, nada foi alterado no app" | Leia a linha de baixo: falta gravação de alguma palavra/letra, ou a palavra nova tem menos de 5. |
 | "nada detectado em N gravações" | A mão (ou o tronco, nas palavras) não apareceu. Apague com **X** e regrave. |
+| "NÃO instalado: dispara em N% do que NÃO é X" | O reforço dessa letra roubaria outras letras. Fica o modelo que já estava. Grave mais variação da letra (distância, ângulo, duas mãos) e as letras que faltam no banco. |
 | Treinei, mas o app não mudou | Rodou o app de novo pelo Android Studio? O treino terminou com `validado`? |
 | Gravei errado e já fechei a câmera | Apague o vídeo em `gravacoes\...` **e** o `.npz` de mesmo nome em `pontos\...`, se existir. |
 | `model.tflite`/`model.onnx` com poucos bytes | O Git LFS não baixou os modelos: rode `git lfs pull`. |

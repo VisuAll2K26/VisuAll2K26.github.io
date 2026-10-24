@@ -81,7 +81,7 @@ mobile/
 | `LetraEngine` | Reconhece **letras**, paradas e com movimento, com os modelos ONNX. |
 | `BodyGestureEngine` | Reconhece **sinais de corpo** com o modelo TFLite, de forma contínua: dá para emendar um sinal no outro. |
 | `FaceMarkerEngine`, `BrowGestureDetector` | Leem o rosto: a sobrancelha levantada vira pergunta. |
-| `LetterDecision`, `LetterCommitGate`, `MovementGate`, `ClearGestureGate` | As regras de "isto é uma letra?", "já posso escrever?" e "a mão aberta parada limpa a frase". Separadas para poderem ser testadas. |
+| `LetterDecision`, `LetterCommitGate`, `MovementGate`, `ClearGestureGate` | As regras de "isto é uma letra?", "já posso escrever?" e "as **duas** mãos abertas e paradas limpam a frase" (uma mão só não limpa: o C passava no teste). Separadas para poderem ser testadas. |
 | `SentenceBuilder`, `SentenceTranslator`, `PhraseOutput` | Montam a frase, fazem a concordância e falam. |
 | `ConversationHistoryStore`, `HistoryBottomSheet` | O histórico das conversas. |
 | `LibrasMath` | As contas de normalização. **Precisam bater com as do treino em Python**: os testes de contrato garantem isso. |

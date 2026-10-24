@@ -334,7 +334,9 @@ def _memoria_livre_gb():
 # Memoria que cada processo de leitura usa, no pico (medido: corpo + 2 maos
 # passa de 1 GB). Com processos demais o Windows recusa memoria e o processo
 # morre no meio ("VirtualAlloc failed").
-GB_POR_PROCESSO = {"palavras": 1.5, "letras": 0.8}
+# O import do mediapipe puxa o TensorFlow inteiro, entao ate a leitura de
+# fotos passa de 1 GB por processo.
+GB_POR_PROCESSO = {"palavras": 1.5, "letras": 1.2}
 
 
 def _le_em_paralelo(pendentes, processos):
@@ -353,7 +355,7 @@ def _le_em_paralelo(pendentes, processos):
                     if feitos % 25 == 0:
                         print("     %d lidas" % feitos, flush=True)
             return resultados
-        except BrokenProcessPool:
+        except (BrokenProcessPool, MemoryError):
             if processos == 1:
                 raise
             prontos = {(r, i) for r, i, _ in resultados}
@@ -407,7 +409,7 @@ def carrega(tipo):
             continue
         with np.load(arquivo, allow_pickle=False) as dados:
             conteudo = {chave: dados[chave] for chave in dados.files}
-        for chave in ("maos", "corpo"):
+        for chave in ("maos", "corpo", "janelas"):
             if chave in conteudo:
                 conteudo[chave] = conteudo[chave].astype(np.float32)
         conteudo["tipo"] = str(conteudo["tipo"])

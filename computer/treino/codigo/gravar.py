@@ -25,6 +25,7 @@ Teclas:
     N ou ->       proxima letra/palavra
     P ou <-       anterior
     TAB           palavra nova (abre o campo pra digitar o nome)
+    0             vai direto pro NEUTRO (palavras), que a tela guia o que gravar
     ESC durante a contagem/gravacao: cancela aquela gravacao
     Q ou ESC      sai
 """
@@ -59,12 +60,27 @@ CINZA = (170, 170, 170)
 FUNDO = (28, 28, 28)
 
 
-def dica(tipo, rotulo, dinamicas):
+# O NEUTRO ensina o app a NAO inventar palavra quando ninguem esta sinalizando.
+# Ele so funciona se tiver de tudo um pouco, principalmente com uma e com as
+# duas maos a vista (ter as duas maos na tela nao pode virar sinal). A dica muda
+# a cada gravacao pra voce nao precisar pensar no que variar.
+NEUTRO_ROTEIRO = [
+    "NEUTRO: as DUAS maos paradas a vista (no colo ou na frente), SEM sinal",
+    "NEUTRO: so a mao DIREITA a vista, parada, SEM sinal",
+    "NEUTRO: so a mao ESQUERDA a vista, parada, SEM sinal",
+    "NEUTRO: maos mexendo SEM sinal (ajeite o cabelo, coce o rosto)",
+    "NEUTRO: duas maos a vista, uma mais alta que a outra, SEM sinal",
+    "NEUTRO: maos subindo e descendo devagar, SEM fazer sinal nenhum",
+    "NEUTRO: fale 'oi' e mexa as maos soltas, SEM sinal de Libras",
+]
+
+
+def dica(tipo, rotulo, dinamicas, passo=0):
     """O que a pessoa deve fazer na frente da camera (sem acento: o OpenCV
-    nao desenha acento)."""
+    nao desenha acento). `passo` gira o roteiro do NEUTRO."""
     if tipo == "palavras":
         if rotulo == comum.NEUTRO:
-            return "NEUTRO: fique parado, maos a vista, SEM fazer sinal"
+            return NEUTRO_ROTEIRO[passo % len(NEUTRO_ROTEIRO)]
         return "PALAVRA: tronco e as duas maos dentro da tela"
     if rotulo == comum.NADA:
         return "NADA: mexa a mao SEM fazer letra (troque de letra, coce a cabeca...)"
@@ -206,7 +222,17 @@ class Gravador:
         elif codigo == TAB and self.aceita_nome:
             self.estado, self.nome = DIGITANDO, ""
             self.aviso = "Digite o nome da palavra nova e tecle ENTER (ESC volta)"
+        elif letra == "0" and self.aceita_nome:
+            self._vai_para(comum.NEUTRO)
         return True
+
+    def _vai_para(self, nome):
+        """Pula pra uma palavra (criando a pasta se ainda nao houver)."""
+        if nome not in self.itens:
+            self.itens.append(nome)
+        self.idx = self.itens.index(nome)
+        self.pasta().mkdir(parents=True, exist_ok=True)
+        self.aviso = ""
 
     def _tecla_nome(self, codigo):
         if codigo == ESC:
@@ -287,13 +313,15 @@ class Gravador:
 
         if self.estado == DIGITANDO:
             texto(vista, "NOME DA PALAVRA:", (20, 34), 0.7, CINZA, 2)
+            texto(vista, "(pra treinar o NEUTRO, sem sinal: escreva NEUTRO)", (20, 106), 0.45, CINZA, 1)
             cursor = "_" if int(agora * 2) % 2 == 0 else " "
             texto(vista, self.nome + cursor, (20, 84), 1.4, AMARELO, 3)
         else:
             texto(vista, self.rotulo, (20, 68), 1.9 if len(self.rotulo) < 9 else 1.1, VERDE, 4)
             texto(vista, "%d gravacoes" % self.contagem(), (w - 190, 34), 0.6, CINZA, 1)
             texto(vista, "%d de %d" % (self.idx + 1, len(self.itens)), (w - 190, 62), 0.6, CINZA, 1)
-            texto(vista, dica(self.tipo, self.rotulo, self.dinamicas), (20, 100), 0.5, BRANCO, 1)
+            texto(vista, dica(self.tipo, self.rotulo, self.dinamicas, self.contagem()),
+                  (20, 100), 0.5, BRANCO, 1)
 
         if self.estado == CONTAGEM:
             texto(vista, str(int(CONTAGEM_S - (agora - self.marca)) + 1), (w // 2 - 30, h // 2),
@@ -316,7 +344,7 @@ class Gravador:
             comandos = "letras/numeros escrevem | BACKSPACE apaga | ENTER confirma | ESC volta"
         elif self.estado == PARADO:
             comandos = "ESPACO grava | R regrava | X apaga ultima | N/P troca | " + \
-                       ("TAB palavra nova | " if self.aceita_nome else "") + "Q sai"
+                       ("TAB palavra nova | 0 NEUTRO | " if self.aceita_nome else "") + "Q sai"
         else:
             comandos = "ESC cancela esta gravacao"
         texto(vista, comandos, (16, h - 16), 0.45, CINZA, 1)

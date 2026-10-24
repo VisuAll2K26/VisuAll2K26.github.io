@@ -885,12 +885,12 @@ class LibrasFragment : Fragment(), TextToSpeech.OnInitListener {
 
         binding.btnFlip.setOnClickListener { trocarLente() }
 
+        // Um toque liga, outro desliga. Nao pergunta endereco: sem nada
+        // gravado, o destino sao os oculos (EnderecoDosOculos.URL), e o app
+        // entra sozinho na rede deles. O campo de endereco fica no toque longo,
+        // pra quem usa o simulador no PC.
         binding.btnOculos.setOnClickListener {
-            if (usandoOculos) desligarOculos()
-            // Sem endereco gravado nao ha o que conectar; pedir na hora e
-            // melhor que ligar e falhar sem dizer por que.
-            else if (enderecoOculos().isBlank()) pedirEnderecoOculos()
-            else ligarOculos()
+            if (usandoOculos) desligarOculos() else ligarOculos()
         }
         // Enquanto a frase cresce a voz fala so o pedaco novo; aqui ela le a
         // frase inteira, quando a pessoa decide que terminou.
@@ -1527,30 +1527,40 @@ class LibrasFragment : Fragment(), TextToSpeech.OnInitListener {
     private fun prefsOculos() =
         requireContext().getSharedPreferences("oculos", Context.MODE_PRIVATE)
 
+    /**
+     * Pra onde o app conecta. Sem nada gravado, e a placa dos oculos.
+     *
+     * O endereco do simulador que o dialogo antigo sugeria
+     * ([EnderecoDosOculos.URL_DO_SIMULADOR]) tambem conta como "nada gravado": quem so
+     * apertou "Conectar" sem mexer no campo ficou com ele salvo e nunca
+     * chegava na placa.
+     */
     private fun enderecoOculos(): String =
-        prefsOculos().getString("url", "").orEmpty()
+        EnderecoDosOculos.resolver(prefsOculos().getString("url", null))
 
     private fun pedirEnderecoOculos() {
         val campo = EditText(requireContext()).apply {
-            // Enquanto a placa nao chega, o endereco e o do mock rodando no PC
-            // (oculos/mock/mock.py). Depois vira o IP do proprio ESP32.
-            setText(enderecoOculos().ifBlank { "http://192.168.15.10:8080/stream" })
+            setText(enderecoOculos())
             setSelection(text.length)
         }
         AlertDialog.Builder(requireContext())
-            .setTitle("Endereco dos oculos")
+            .setTitle("Endereco avancado")
             .setMessage(
-                "Endereco do stream.\n\n" +
-                    "Oculos: ${EnderecoDosOculos.URL}\n" +
-                    "O app entra na rede ${EnderecoDosOculos.REDE} sozinho, e o " +
-                    "celular continua na rede de casa pro resto.\n\n" +
-                    "Mock no PC: o IP do PC com /stream no fim. Ai o app usa o " +
-                    "Wi-Fi em que o celular ja esta.")
+                "Normalmente voce NAO precisa mexer aqui: e so tocar no botao " +
+                    "dos oculos. O app entra sozinho na rede ${EnderecoDosOculos.REDE} " +
+                    "(${EnderecoDosOculos.URL}) e o celular continua na rede de casa " +
+                    "pro resto.\n\n" +
+                    "So para o simulador no PC: o IP do PC com /stream no fim. " +
+                    "Ai o app usa o Wi-Fi em que o celular ja esta.")
             .setView(campo)
             .setPositiveButton("Conectar") { _, _ ->
                 val url = campo.text.toString().trim()
                 prefsOculos().edit().putString("url", url).apply()
-                if (url.isNotBlank()) ligarOculos()
+                ligarOculos()
+            }
+            .setNeutralButton("Usar os oculos") { _, _ ->
+                prefsOculos().edit().remove("url").apply()
+                ligarOculos()
             }
             .setNegativeButton("Cancelar", null)
             .show()
@@ -1614,6 +1624,13 @@ class LibrasFragment : Fragment(), TextToSpeech.OnInitListener {
         // so pro app, sem tirar o celular da rede de casa. Apontando pro mock,
         // usa o Wi-Fi em que o celular ja esta.
         val naPlaca = EnderecoDosOculos.ehAPlaca(endereco)
+        if (naPlaca) {
+            // Na primeira vez o Android pergunta se o app pode entrar na rede;
+            // sem este aviso a pergunta parece vir do nada.
+            Toast.makeText(requireContext(),
+                "Entrando na rede ${EnderecoDosOculos.REDE}. Se o Android perguntar, " +
+                    "toque em Conectar.", Toast.LENGTH_LONG).show()
+        }
         fonteOculos = NetworkStreamSource(
             context = requireContext().applicationContext,
             url = endereco,
